@@ -1,11 +1,20 @@
 import { useCallback, useEffect, useState } from 'react'
 import { api } from './api'
 import { LoginScreen } from './components/LoginScreen'
+import { createLocalStore } from './localStore'
+import { httpStore } from './store'
 import { Tracker } from './Tracker'
 
 type Session = 'checking' | 'loggedOut' | 'loggedIn' | 'offline'
 
+// Build "pages": dados no aparelho, sem servidor e sem login
+const localStore = import.meta.env.VITE_STORAGE === 'local' ? createLocalStore() : null
+
 export default function App() {
+  return localStore ? <Tracker store={localStore} /> : <ServerApp />
+}
+
+function ServerApp() {
   const [session, setSession] = useState<Session>('checking')
 
   useEffect(() => {
@@ -39,6 +48,6 @@ export default function App() {
     case 'loggedOut':
       return <LoginScreen onLogin={login} />
     case 'loggedIn':
-      return <Tracker onUnauthorized={expire} onLogout={logout} />
+      return <Tracker store={httpStore} onUnauthorized={expire} onLogout={logout} />
   }
 }

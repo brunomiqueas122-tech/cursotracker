@@ -1,49 +1,63 @@
 import { useCallback, useEffect, useMemo, useState } from 'react'
-import { api, UnauthorizedError } from './api'
+import { UnauthorizedError } from './api'
+import { BackupPanel } from './components/BackupPanel'
 import { CourseCard } from './components/CourseCard'
 import { DashboardPanel } from './components/DashboardPanel'
 import { formatDate, groupByDay, statusLabels } from './format'
+import type { CourseStore } from './store'
 import { courseStatuses, type Course, type CourseStatus, type DashboardSummary, type UpdateProgressRequest } from './types'
 
 interface Props {
-  onUnauthorized: () => void
-  onLogout: () => void
+  store: CourseStore
+  onUnauthorized?: () => void
+  onLogout?: () => void
 }
 
-export function Tracker({ onUnauthorized, onLogout }: Props) {
+export function Tracker({ store, onUnauthorized, onLogout }: Props) {
   const [courses, setCourses] = useState<Course[]>([])
   const [summary, setSummary] = useState<DashboardSummary | null>(null)
   const [error, setError] = useState<string | null>(null)
   const [status, setStatus] = useState<CourseStatus | ''>('')
   const [area, setArea] = useState('')
 
-  useEffect(() => {
-    const controller = new AbortController()
-    Promise.all([api.courses(controller.signal), api.dashboard(controller.signal)])
-      .then(([c, s]) => {
+  const fail = useCallback(
+    (e: unknown) => {
+      if (e instanceof UnauthorizedError && onUnauthorized) onUnauthorized()
+      else setError(e instanceof Error ? e.message : 'Erro ao carregar.')
+    },
+    [onUnauthorized],
+  )
+
+  const load = useCallback(
+    (signal?: AbortSignal) =>
+      Promise.all([store.courses(signal), store.dashboard(signal)]).then(([c, s]) => {
         setCourses(c)
         setSummary(s)
-      })
-      .catch((e: unknown) => {
-        if (controller.signal.aborted) return
-        if (e instanceof UnauthorizedError) onUnauthorized()
-        else setError(e instanceof Error ? e.message : 'Erro ao carregar.')
-      })
+        setError(null)
+      }),
+    [store],
+  )
+
+  useEffect(() => {
+    const controller = new AbortController()
+    load(controller.signal).catch((e: unknown) => {
+      if (!controller.signal.aborted) fail(e)
+    })
     return () => controller.abort()
-  }, [onUnauthorized])
+  }, [load, fail])
 
   const saveProgress = useCallback(
     async (id: number, progress: UpdateProgressRequest) => {
       try {
-        const updated = await api.updateProgress(id, progress)
+        const updated = await store.updateProgress(id, progress)
         setCourses((list) => list.map((c) => (c.id === id ? updated : c)))
-        setSummary(await api.dashboard())
+        setSummary(await store.dashboard())
       } catch (e) {
-        if (e instanceof UnauthorizedError) onUnauthorized()
+        if (e instanceof UnauthorizedError) onUnauthorized?.()
         throw e
       }
     },
-    [onUnauthorized],
+    [store, onUnauthorized],
   )
 
   const areas = useMemo(() => [...new Set(courses.map((c) => c.area))].sort(), [courses])
@@ -52,9 +66,11 @@ export function Tracker({ onUnauthorized, onLogout }: Props) {
   return (
     <main className="page">
       <header className="top">
-        <button type="button" className="secondary logout" onClick={onLogout}>
-          Sair
-        </button>
+        {onLogout && (
+          <button type="button" className="secondary logout" onClick={onLogout}>
+            Sair
+          </button>
+        )}
         <h1>CursoTracker</h1>
         <p>Cursos gratuitos com certificado, um dia de cada vez.</p>
       </header>
@@ -99,6 +115,8 @@ export function Tracker({ onUnauthorized, onLogout }: Props) {
       ))}
 
       {!error && summary && visible.length === 0 && <p className="empty">Nenhum curso com esses filtros.</p>}
+
+      {store.backup && <BackupPanel backup={store.backup} onImported={() => load().catch(fail)} />}
     </main>
   )
 }
