@@ -13,6 +13,9 @@ public static class CourseEndpoints
         var group = app.MapGroup("/api/courses");
         group.MapGet("/", ListCourses);
         group.MapGet("/{id:int}", GetCourse);
+        group.MapPost("/", CreateCourse);
+        group.MapPut("/{id:int}", UpdateCourse);
+        group.MapDelete("/{id:int}", DeleteCourse);
         group.MapPut("/{id:int}/progress", UpdateProgress);
         return app;
     }
@@ -55,5 +58,49 @@ public static class CourseEndpoints
         course.UpdateProgress(request.ToProgress(), time.GetUtcNow());
         await db.SaveChangesAsync(ct);
         return TypedResults.Ok(CourseResponse.From(course));
+    }
+
+    static async Task<Results<Created<CourseResponse>, ValidationProblem>> CreateCourse(
+        CourseDetailsRequest request, IValidator<CourseDetailsRequest> validator, AppDbContext db, CancellationToken ct)
+    {
+        var validation = await validator.ValidateAsync(request, ct);
+        if (!validation.IsValid)
+            return TypedResults.ValidationProblem(validation.ToDictionary());
+
+        var d = request.ToDetails();
+        var course = new Course(1, d.Date, d.Platform, d.Name, d.Area, d.Url, d.EstimatedHours);
+        db.Courses.Add(course);
+        CoursePlan.Renumber([.. await db.Courses.ToListAsync(ct), course]);
+        await db.SaveChangesAsync(ct);
+        return TypedResults.Created($"/api/courses/{course.Id}", CourseResponse.From(course));
+    }
+
+    static async Task<Results<Ok<CourseResponse>, NotFound, ValidationProblem>> UpdateCourse(
+        int id, CourseDetailsRequest request, IValidator<CourseDetailsRequest> validator, AppDbContext db, CancellationToken ct)
+    {
+        var validation = await validator.ValidateAsync(request, ct);
+        if (!validation.IsValid)
+            return TypedResults.ValidationProblem(validation.ToDictionary());
+
+        var course = await db.Courses.FirstOrDefaultAsync(c => c.Id == id, ct);
+        if (course is null)
+            return TypedResults.NotFound();
+
+        course.UpdateDetails(request.ToDetails());
+        CoursePlan.Renumber(await db.Courses.ToListAsync(ct));
+        await db.SaveChangesAsync(ct);
+        return TypedResults.Ok(CourseResponse.From(course));
+    }
+
+    static async Task<Results<NoContent, NotFound>> DeleteCourse(int id, AppDbContext db, CancellationToken ct)
+    {
+        var course = await db.Courses.FirstOrDefaultAsync(c => c.Id == id, ct);
+        if (course is null)
+            return TypedResults.NotFound();
+
+        db.Courses.Remove(course);
+        CoursePlan.Renumber(await db.Courses.Where(c => c.Id != id).ToListAsync(ct));
+        await db.SaveChangesAsync(ct);
+        return TypedResults.NoContent();
     }
 }

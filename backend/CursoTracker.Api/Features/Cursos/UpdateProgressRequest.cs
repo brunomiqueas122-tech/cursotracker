@@ -27,12 +27,9 @@ public sealed class UpdateProgressValidator : AbstractValidator<UpdateProgressRe
 
         RuleFor(r => r.CertificateUrl)
             .MaximumLength(500)
-            .Must(BeHttpUrl).WithMessage("Informe um link começando com http:// ou https://.")
+            .Must(Urls.IsHttp).WithMessage("Informe um link começando com http:// ou https://.")
             .When(r => !string.IsNullOrWhiteSpace(r.CertificateUrl));
 
         RuleFor(r => r.Notes).MaximumLength(1000).WithMessage("As anotações podem ter no máximo 1000 caracteres.");
     }
-
-    static bool BeHttpUrl(string? url) =>
-        Uri.TryCreate(url?.Trim(), UriKind.Absolute, out var uri) && (uri.Scheme == Uri.UriSchemeHttp || uri.Scheme == Uri.UriSchemeHttps);
 }

@@ -16,6 +16,14 @@ public sealed record CourseProgress(
     bool OnLinkedIn,
     string? Notes);
 
+public sealed record CourseDetails(
+    DateOnly Date,
+    string Platform,
+    string Name,
+    string Area,
+    string Url,
+    double EstimatedHours);
+
 public sealed class Course
 {
     public int Id { get; private set; }
@@ -39,17 +47,29 @@ public sealed class Course
     public Course(int day, DateOnly date, string platform, string name, string area, string url, double estimatedHours)
     {
         ArgumentOutOfRangeException.ThrowIfNegativeOrZero(day);
-        ArgumentOutOfRangeException.ThrowIfNegative(estimatedHours);
-        ArgumentException.ThrowIfNullOrWhiteSpace(name);
 
         Day = day;
-        Date = date;
-        Platform = platform;
-        Name = name;
-        Area = area;
-        Url = url;
-        EstimatedHours = estimatedHours;
         Status = CourseStatus.NotStarted;
+        UpdateDetails(new CourseDetails(date, platform, name, area, url, estimatedHours));
+    }
+
+    public void UpdateDetails(CourseDetails details)
+    {
+        ArgumentOutOfRangeException.ThrowIfNegative(details.EstimatedHours);
+        ArgumentException.ThrowIfNullOrWhiteSpace(details.Name);
+
+        Date = details.Date;
+        Platform = details.Platform.Trim();
+        Name = details.Name.Trim();
+        Area = details.Area.Trim();
+        Url = details.Url.Trim();
+        EstimatedHours = details.EstimatedHours;
+    }
+
+    internal void AssignDay(int day)
+    {
+        ArgumentOutOfRangeException.ThrowIfNegativeOrZero(day);
+        Day = day;
     }
 
     public void UpdateProgress(CourseProgress progress, DateTimeOffset now)

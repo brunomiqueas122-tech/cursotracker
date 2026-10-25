@@ -18,6 +18,7 @@ builder.Services.AddDbContext<AppDbContext>(options =>
     options.UseSqlite(builder.Configuration.GetConnectionString("Default") ?? "Data Source=cursotracker.db"));
 builder.Services.AddSingleton(TimeProvider.System);
 builder.Services.AddScoped<IValidator<UpdateProgressRequest>, UpdateProgressValidator>();
+builder.Services.AddScoped<IValidator<CourseDetailsRequest>, CourseDetailsValidator>();
 builder.Services.ConfigureHttpJsonOptions(options =>
     options.SerializerOptions.Converters.Add(new JsonStringEnumConverter()));
 builder.Services.AddProblemDetails();
