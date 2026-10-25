@@ -1,11 +1,16 @@
 import { useState } from 'react'
 import { formatHours, statusLabels } from '../format'
 import { linkedInCertificationUrl } from '../linkedin'
-import { courseStatuses, type Course, type CourseStatus, type UpdateProgressRequest } from '../types'
+import { courseStatuses, type Course, type CourseDetails, type CourseStatus, type UpdateProgressRequest } from '../types'
+import { CourseForm } from './CourseForm'
 
 interface Props {
   course: Course
   onSave: (id: number, progress: UpdateProgressRequest) => Promise<void>
+  onEdit?: (id: number, details: CourseDetails) => Promise<void>
+  onDelete?: (id: number) => Promise<void>
+  areas?: string[]
+  overdue?: boolean
 }
 
 function toDraft(course: Course): UpdateProgressRequest {
@@ -19,11 +24,12 @@ function toDraft(course: Course): UpdateProgressRequest {
   }
 }
 
-export function CourseCard({ course, onSave }: Props) {
+export function CourseCard({ course, onSave, onEdit, onDelete, areas = [], overdue = false }: Props) {
   const [draft, setDraft] = useState(() => toDraft(course))
   const [saving, setSaving] = useState(false)
   const [error, setError] = useState<string | null>(null)
   const [openedLinkedIn, setOpenedLinkedIn] = useState(false)
+  const [editing, setEditing] = useState(false)
 
   // O servidor pode ajustar o que foi enviado (ex.: status), então o rascunho segue a versão salva
   const [synced, setSynced] = useState(course)
@@ -53,8 +59,45 @@ export function CourseCard({ course, onSave }: Props) {
   const complete = () =>
     save({ ...draft, status: 'Completed', hoursDone: Math.max(draft.hoursDone, course.estimatedHours) })
 
+  async function remove() {
+    if (!onDelete || !window.confirm(`Excluir "${course.name}"? O progresso dele será perdido.`)) return
+    setSaving(true)
+    setError(null)
+    try {
+      await onDelete(course.id)
+    } catch (e) {
+      setError(e instanceof Error ? e.message : 'Erro ao excluir.')
+      setSaving(false)
+    }
+  }
+
+  if (editing && onEdit) {
+    return (
+      <article id={id} className="course editing">
+        <h3>Editar curso</h3>
+        <CourseForm
+          initial={{
+            date: course.date,
+            platform: course.platform,
+            name: course.name,
+            area: course.area,
+            url: course.url,
+            estimatedHours: course.estimatedHours,
+          }}
+          areas={areas}
+          submitLabel="Salvar alterações"
+          onSubmit={async (details) => {
+            await onEdit(course.id, details)
+            setEditing(false)
+          }}
+          onCancel={() => setEditing(false)}
+        />
+      </article>
+    )
+  }
+
   return (
-    <article className={`course status-${course.status}`}>
+    <article id={id} className={`course status-${course.status}${overdue ? ' overdue' : ''}`}>
       <header className="course-head">
         <div>
           <span className="course-meta">
@@ -66,7 +109,10 @@ export function CourseCard({ course, onSave }: Props) {
             </a>
           </h3>
         </div>
-        <span className={`pill pill-${course.status}`}>{statusLabels[course.status]}</span>
+        <div className="pills">
+          {overdue && <span className="pill pill-overdue">Atrasado</span>}
+          <span className={`pill pill-${course.status}`}>{statusLabels[course.status]}</span>
+        </div>
       </header>
 
       <div className="fields">
@@ -169,6 +215,20 @@ export function CourseCard({ course, onSave }: Props) {
       )}
 
       <footer className="actions">
+        {(onEdit || onDelete) && (
+          <div className="manage">
+            {onEdit && (
+              <button type="button" className="link" onClick={() => setEditing(true)} disabled={saving}>
+                Editar
+              </button>
+            )}
+            {onDelete && (
+              <button type="button" className="link danger" onClick={remove} disabled={saving}>
+                Excluir
+              </button>
+            )}
+          </div>
+        )}
         {course.certificateUrl && (
           <a href={course.certificateUrl} target="_blank" rel="noreferrer">
             Ver certificado
