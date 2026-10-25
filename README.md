@@ -2,10 +2,19 @@
 
 Acompanhamento de cursos gratuitos com certificado.
 
-## Rodar
+**App no celular:** https://brunomiqueas122-tech.github.io/cursotracker/ — abra no navegador e use "Adicionar à tela inicial". Os dados ficam no aparelho (use Backup para guardar uma cópia).
+
+## Modos
+
+| Modo | Dados | Como gerar |
+|---|---|---|
+| Celular (GitHub Pages) | `localStorage` do aparelho, offline | `npm run build:pages` — publicado pelo GitHub Actions a cada push na `main` |
+| PC / servidor | API .NET + SQLite, com login | `dotnet run` + `npm run dev`, ou a imagem Docker (`Auth__Password` obrigatório) |
+
+## Rodar (modo servidor)
 
 ```bash
-# terminal 1 — API em http://localhost:5080 (cria cursotracker.db e aplica o seed na 1ª vez)
+# terminal 1 — API em http://localhost:5080 (cria cursotracker.db e aplica o seed na 1ª vez; senha local: dev)
 cd backend/CursoTracker.Api
 dotnet run
 
