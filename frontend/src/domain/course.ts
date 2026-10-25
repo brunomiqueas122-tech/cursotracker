@@ -1,6 +1,7 @@
 // Espelho de Domain/Course.cs + UpdateProgressValidator: usado quando os dados ficam no aparelho (modo local)
 import type { Course, UpdateProgressRequest } from '../types'
 import { courseStatuses } from '../types'
+import { isHttpUrl } from './plan'
 
 const MAX_HOURS = 500
 const MAX_NOTES = 1000
@@ -36,13 +37,4 @@ export function applyProgress(course: Course, p: UpdateProgressRequest, now: Dat
 function normalize(value: string | null): string | null {
   const trimmed = value?.trim()
   return trimmed ? trimmed : null
-}
-
-function isHttpUrl(value: string): boolean {
-  try {
-    const { protocol } = new URL(value)
-    return protocol === 'http:' || protocol === 'https:'
-  } catch {
-    return false
-  }
 }

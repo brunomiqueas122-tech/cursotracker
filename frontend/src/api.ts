@@ -1,4 +1,4 @@
-import type { Course, DashboardSummary, UpdateProgressRequest } from './types'
+import type { Course, CourseDetails, DashboardSummary, UpdateProgressRequest } from './types'
 
 interface ValidationProblem {
   errors?: Record<string, string[]>
@@ -43,6 +43,12 @@ export const api = {
   dashboard: (signal?: AbortSignal) => json<DashboardSummary>('/api/dashboard', { signal }),
   updateProgress: (id: number, body: UpdateProgressRequest) =>
     json<Course>(`/api/courses/${id}/progress`, { method: 'PUT', body: JSON.stringify(body) }),
+  createCourse: (body: CourseDetails) => json<Course>('/api/courses', { method: 'POST', body: JSON.stringify(body) }),
+  updateCourse: (id: number, body: CourseDetails) =>
+    json<Course>(`/api/courses/${id}`, { method: 'PUT', body: JSON.stringify(body) }),
+  async deleteCourse(id: number): Promise<void> {
+    await send(`/api/courses/${id}`, { method: 'DELETE' })
+  },
 
   async isLoggedIn(signal?: AbortSignal): Promise<boolean> {
     try {

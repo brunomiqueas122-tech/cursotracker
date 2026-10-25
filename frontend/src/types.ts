@@ -45,3 +45,5 @@ export interface DashboardSummary {
   hoursDone: number
   days: DaySummary[]
 }
+
+export type CourseDetails = Pick<Course, 'date' | 'platform' | 'name' | 'area' | 'url' | 'estimatedHours'>

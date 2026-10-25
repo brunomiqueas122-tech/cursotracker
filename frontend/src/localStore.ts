@@ -1,8 +1,9 @@
 import seed from '../../seed-courses.json'
 import { applyProgress, validateProgress } from './domain/course'
 import { summarize } from './domain/dashboard'
+import { applyDetails, normalizeDetails, renumber, validateDetails } from './domain/plan'
 import type { CourseStore } from './store'
-import { courseStatuses, type Course } from './types'
+import { courseStatuses, type Course, type CourseDetails } from './types'
 
 const KEY = 'cursotracker.v1'
 
@@ -60,6 +61,18 @@ export function createLocalStore({
 
   const sorted = (courses: Course[]) => [...courses].sort((a, b) => a.day - b.day || a.id - b.id)
 
+  function checked(details: CourseDetails): CourseDetails {
+    const errors = validateDetails(details)
+    if (errors.length > 0) throw new Error(errors.join(' '))
+    return details
+  }
+
+  function find(courses: Course[], id: number): number {
+    const index = courses.findIndex((c) => c.id === id)
+    if (index < 0) throw new Error('Curso não encontrado.')
+    return index
+  }
+
   return {
     courses: () => Promise.resolve().then(() => sorted(load())),
     dashboard: () => Promise.resolve().then(() => summarize(load())),
@@ -68,11 +81,47 @@ export function createLocalStore({
         const errors = validateProgress(progress)
         if (errors.length > 0) throw new Error(errors.join(' '))
         const courses = load()
-        const index = courses.findIndex((c) => c.id === id)
-        if (index < 0) throw new Error('Curso não encontrado.')
+        const index = find(courses, id)
         courses[index] = applyProgress(courses[index], progress, now())
         save(courses)
         return courses[index]
+      }),
+    createCourse: (details) =>
+      Promise.resolve().then(() => {
+        const d = checked(details)
+        const courses = load()
+        const id = Math.max(0, ...courses.map((c) => c.id)) + 1
+        const course: Course = {
+          ...normalizeDetails(d),
+          id,
+          day: 1,
+          hoursDone: 0,
+          status: 'NotStarted',
+          completedAt: null,
+          certificateReceived: false,
+          certificateUrl: null,
+          onLinkedIn: false,
+          notes: null,
+        }
+        const updated = renumber([...courses, course])
+        save(updated)
+        return updated.find((c) => c.id === id)!
+      }),
+    updateCourse: (id, details) =>
+      Promise.resolve().then(() => {
+        const d = checked(details)
+        const courses = load()
+        const index = find(courses, id)
+        courses[index] = applyDetails(courses[index], d)
+        const updated = renumber(courses)
+        save(updated)
+        return updated[index]
+      }),
+    deleteCourse: (id) =>
+      Promise.resolve().then(() => {
+        const courses = load()
+        find(courses, id)
+        save(renumber(courses.filter((c) => c.id !== id)))
       }),
     backup: {
       exportJson: () => JSON.stringify({ version: 1, courses: load() } satisfies SavedData, null, 2),
