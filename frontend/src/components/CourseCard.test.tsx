@@ -63,4 +63,28 @@ describe('CourseCard', () => {
 
     expect(await screen.findByRole('alert')).toHaveTextContent('As horas feitas não podem ser negativas.')
   })
+
+  it('offers to add a completed course to LinkedIn and marks it after confirmation', async () => {
+    const onSave = vi.fn<(id: number, p: UpdateProgressRequest) => Promise<void>>().mockResolvedValue()
+    const completed: Course = { ...course, status: 'Completed', hoursDone: 5, completedAt: '2026-10-25T20:00:00Z' }
+    render(<CourseCard course={completed} onSave={onSave} />)
+
+    const link = screen.getByRole('link', { name: 'Adicionar ao LinkedIn' })
+    expect(link).toHaveAttribute('href', expect.stringContaining('linkedin.com/profile/add'))
+    expect(screen.queryByRole('button', { name: 'Já adicionei' })).not.toBeInTheDocument()
+
+    link.addEventListener('click', (e) => e.preventDefault())
+    await userEvent.click(link)
+    await userEvent.click(screen.getByRole('button', { name: 'Já adicionei' }))
+
+    expect(onSave).toHaveBeenCalledWith(7, expect.objectContaining({ onLinkedIn: true, status: 'Completed' }))
+  })
+
+  it('hides the LinkedIn prompt when the course is not completed or already there', () => {
+    const { rerender } = render(<CourseCard course={course} onSave={vi.fn()} />)
+    expect(screen.queryByText('Adicionar ao LinkedIn')).not.toBeInTheDocument()
+
+    rerender(<CourseCard course={{ ...course, status: 'Completed', onLinkedIn: true }} onSave={vi.fn()} />)
+    expect(screen.queryByText('Adicionar ao LinkedIn')).not.toBeInTheDocument()
+  })
 })

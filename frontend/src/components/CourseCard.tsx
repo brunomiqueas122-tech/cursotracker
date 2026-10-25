@@ -1,5 +1,6 @@
 import { useState } from 'react'
 import { formatHours, statusLabels } from '../format'
+import { linkedInCertificationUrl } from '../linkedin'
 import { courseStatuses, type Course, type CourseStatus, type UpdateProgressRequest } from '../types'
 
 interface Props {
@@ -22,6 +23,7 @@ export function CourseCard({ course, onSave }: Props) {
   const [draft, setDraft] = useState(() => toDraft(course))
   const [saving, setSaving] = useState(false)
   const [error, setError] = useState<string | null>(null)
+  const [openedLinkedIn, setOpenedLinkedIn] = useState(false)
 
   // O servidor pode ajustar o que foi enviado (ex.: status), então o rascunho segue a versão salva
   const [synced, setSynced] = useState(course)
@@ -140,6 +142,31 @@ export function CourseCard({ course, onSave }: Props) {
       </div>
 
       {error && <p className="error" role="alert">{error}</p>}
+
+      {course.status === 'Completed' && !course.onLinkedIn && (
+        <div className="linkedin">
+          <p>
+            Curso concluído! Adicione o certificado ao seu perfil.
+            {!course.certificateUrl && ' Dica: salve antes o link do certificado para ele ir junto.'}
+          </p>
+          <div className="linkedin-actions">
+            <a
+              className="linkedin-button"
+              href={linkedInCertificationUrl(course)}
+              target="_blank"
+              rel="noreferrer"
+              onClick={() => setOpenedLinkedIn(true)}
+            >
+              Adicionar ao LinkedIn
+            </a>
+            {openedLinkedIn && (
+              <button type="button" className="secondary" onClick={() => save({ ...draft, onLinkedIn: true })} disabled={saving}>
+                Já adicionei
+              </button>
+            )}
+          </div>
+        </div>
+      )}
 
       <footer className="actions">
         {course.certificateUrl && (
