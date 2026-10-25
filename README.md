@@ -11,6 +11,8 @@ Acompanhamento de cursos gratuitos com certificado.
 | Celular (GitHub Pages) | `localStorage` do aparelho, offline | `npm run build:pages` — publicado pelo GitHub Actions a cada push na `main` |
 | PC / servidor | API .NET + SQLite, com login | `dotnet run` + `npm run dev`, ou a imagem Docker (`Auth__Password` obrigatório) |
 
+O "Dia N" vem da data: a data mais antiga do plano é o dia 1.
+
 ## Rodar (modo servidor)
 
 ```bash
@@ -37,5 +39,8 @@ cd frontend && npm test
 |---|---|---|
 | GET | `/api/courses?status=&area=` | Lista ordenada por dia |
 | GET | `/api/courses/{id}` | Um curso |
+| POST | `/api/courses` | Novo curso (data, nome, plataforma, área, link, horas estimadas) |
+| PUT | `/api/courses/{id}` | Edita ou reagenda; os dias do plano são recalculados |
+| DELETE | `/api/courses/{id}` | Remove o curso |
 | PUT | `/api/courses/{id}/progress` | Horas, status, certificado, LinkedIn, anotações |
 | GET | `/api/dashboard` | % concluído, certificados, horas (total e por dia) |
