@@ -24,8 +24,21 @@ public sealed class ApiFactory : WebApplicationFactory<Program>
         _keepAlive.Open();
     }
 
-    protected override void ConfigureWebHost(IWebHostBuilder builder) =>
+    public const string Password = "senha-de-teste";
+
+    protected override void ConfigureWebHost(IWebHostBuilder builder)
+    {
         builder.UseSetting("ConnectionStrings:Default", _connectionString);
+        builder.UseSetting("Auth:Password", Password);
+    }
+
+    public async Task<HttpClient> CreateLoggedInClientAsync()
+    {
+        var client = CreateClient();
+        var response = await client.PostAsJsonAsync("/api/auth/login", new { password = Password });
+        response.EnsureSuccessStatusCode();
+        return client;
+    }
 
     protected override void Dispose(bool disposing)
     {
@@ -45,7 +58,7 @@ public class ApiTests
     public async Task Seed_loads_all_courses_ordered_by_day()
     {
         await using var factory = new ApiFactory();
-        var client = factory.CreateClient();
+        var client = await factory.CreateLoggedInClientAsync();
 
         var courses = await client.GetFromJsonAsync<List<CourseResponse>>("/api/courses", Json, CancellationToken.None);
 
@@ -59,7 +72,7 @@ public class ApiTests
     public async Task Completing_a_course_updates_course_and_dashboard()
     {
         await using var factory = new ApiFactory();
-        var client = factory.CreateClient();
+        var client = await factory.CreateLoggedInClientAsync();
         var ct = CancellationToken.None;
 
         var response = await client.PutAsJsonAsync("/api/courses/1/progress",
@@ -85,7 +98,7 @@ public class ApiTests
     public async Task Negative_hours_return_validation_problem()
     {
         await using var factory = new ApiFactory();
-        var client = factory.CreateClient();
+        var client = await factory.CreateLoggedInClientAsync();
         var ct = CancellationToken.None;
 
         var response = await client.PutAsJsonAsync("/api/courses/1/progress", Request(-2, CourseStatus.InProgress), Json, ct);
@@ -99,7 +112,7 @@ public class ApiTests
     public async Task Invalid_certificate_url_returns_validation_problem()
     {
         await using var factory = new ApiFactory();
-        var client = factory.CreateClient();
+        var client = await factory.CreateLoggedInClientAsync();
         var ct = CancellationToken.None;
 
         var response = await client.PutAsJsonAsync("/api/courses/1/progress",
@@ -112,7 +125,7 @@ public class ApiTests
     public async Task Unknown_course_returns_404()
     {
         await using var factory = new ApiFactory();
-        var client = factory.CreateClient();
+        var client = await factory.CreateLoggedInClientAsync();
 
         var response = await client.PutAsJsonAsync("/api/courses/999/progress", Request(1, CourseStatus.InProgress), Json,
             CancellationToken.None);
