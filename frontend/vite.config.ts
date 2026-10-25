@@ -2,11 +2,17 @@
 import react from '@vitejs/plugin-react'
 import { defineConfig } from 'vite'
 
-export default defineConfig({
+export default defineConfig(({ mode }) => ({
   plugins: [react()],
+  // GitHub Pages serve o app em /cursotracker/
+  base: mode === 'pages' ? '/cursotracker/' : '/',
   server: {
     proxy: {
       '/api': 'http://localhost:5080',
+    },
+    fs: {
+      // seed-courses.json fica na raiz do repositório
+      allow: ['..'],
     },
   },
   test: {
@@ -14,4 +20,4 @@ export default defineConfig({
     globals: true,
     setupFiles: ['./src/test-setup.ts'],
   },
-})
+}))
