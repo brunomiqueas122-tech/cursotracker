@@ -1,12 +1,11 @@
 import { useCallback, useEffect, useMemo, useState } from 'react'
 import { UnauthorizedError } from './api'
 import { AgendaPanel } from './components/AgendaPanel'
-import { BackupPanel } from './components/BackupPanel'
 import { CourseCard } from './components/CourseCard'
 import { CourseForm } from './components/CourseForm'
 import { DashboardPanel } from './components/DashboardPanel'
+import { ImportPanel } from './components/ImportPanel'
 import { agenda, isOverdue, toIsoDate } from './domain/agenda'
-import { backupReminder } from './domain/backupReminder'
 import { buildCalendar } from './domain/calendar'
 import { portfolioCertificates } from './domain/certificates'
 import { downloadFile } from './download'
@@ -26,11 +25,22 @@ interface Props {
   store: CourseStore
   onUnauthorized?: () => void
   onLogout?: () => void
+  onDiscover?: () => void
+  onEditProfile?: () => void
+  importCourses?: (backupJson: string) => Promise<{ imported: number }>
   /** Data de hoje (AAAA-MM-DD); injetável para testes */
   today?: string
 }
 
-export function Tracker({ store, onUnauthorized, onLogout, today: fixedToday }: Props) {
+export function Tracker({
+  store,
+  onUnauthorized,
+  onLogout,
+  onDiscover,
+  onEditProfile,
+  importCourses,
+  today: fixedToday,
+}: Props) {
   const [currentDay, setCurrentDay] = useState(() => toIsoDate(new Date()))
   const today = fixedToday ?? currentDay
 
@@ -41,7 +51,6 @@ export function Tracker({ store, onUnauthorized, onLogout, today: fixedToday }: 
   const [area, setArea] = useState('')
   const [adding, setAdding] = useState(false)
   const [timer, setTimer] = useState<RunningTimer | null>(() => loadTimer())
-  const [lastBackup, setLastBackup] = useState(() => store.backup?.lastBackupAt() ?? null)
 
   const fail = useCallback(
     (e: unknown) => {
@@ -120,11 +129,6 @@ export function Tracker({ store, onUnauthorized, onLogout, today: fixedToday }: 
   const startTimer = (courseId: number) => changeTimer({ courseId, startedAt: new Date().toISOString() })
   const clearTimer = () => changeTimer(null)
 
-  function exportBackup() {
-    if (!store.backup) return
-    downloadFile(`cursotracker-backup-${today}.json`, store.backup.exportJson(), 'application/json')
-    setLastBackup(store.backup.lastBackupAt())
-  }
   const pendingCount = courses.filter((c) => c.status === 'NotStarted' || c.status === 'InProgress').length
   const exportCalendar = () => downloadFile('cursotracker.ics', buildCalendar(courses, new Date()), 'text/calendar')
 
@@ -132,35 +136,42 @@ export function Tracker({ store, onUnauthorized, onLogout, today: fixedToday }: 
   const exportCertificates = () =>
     downloadFile('certificados.json', JSON.stringify(certificates, null, 2), 'application/json')
 
-  const reminder = store.backup ? backupReminder(courses, lastBackup, today) : null
-
   const areas = useMemo(() => [...new Set(courses.map((c) => c.area))].sort(), [courses])
   const visible = courses.filter((c) => (!status || c.status === status) && (!area || c.area === area))
 
   return (
     <main className="page">
       <header className="top">
-        {onLogout && (
-          <button type="button" className="secondary logout" onClick={onLogout}>
-            Sair
-          </button>
-        )}
+        <nav className="top-actions">
+          {onDiscover && (
+            <button type="button" onClick={onDiscover}>
+              Descobrir cursos com IA
+            </button>
+          )}
+          {onEditProfile && (
+            <button type="button" className="secondary" onClick={onEditProfile}>
+              Perfil
+            </button>
+          )}
+          {onLogout && (
+            <button type="button" className="secondary" onClick={onLogout}>
+              Sair
+            </button>
+          )}
+        </nav>
         <h1>CursoTracker</h1>
         <p>Cursos gratuitos com certificado, um dia de cada vez.</p>
       </header>
 
       {error && <p className="error" role="alert">{error}</p>}
-      {reminder && (
-        <div className="reminder" role="status">
-          <span>
-            {reminder.kind === 'never'
-              ? 'Você ainda não fez nenhum backup do seu progresso.'
-              : `Seu último backup foi há ${reminder.days} dias.`}
-          </span>
-          <button type="button" onClick={exportBackup}>
-            Baixar backup
+      {summary && courses.length === 0 && onDiscover && (
+        <section className="empty-plan">
+          <h2>Seu plano ainda está vazio</h2>
+          <p>Deixe a IA encontrar cursos gratuitos com certificado para o seu perfil, ou adicione um curso manualmente.</p>
+          <button type="button" onClick={onDiscover}>
+            Descobrir cursos com IA
           </button>
-        </div>
+        </section>
       )}
       {summary && <DashboardPanel summary={summary} />}
       <AgendaPanel {...agenda(courses, today)} onMoveToToday={moveToToday} />
@@ -239,7 +250,7 @@ export function Tracker({ store, onUnauthorized, onLogout, today: fixedToday }: 
         </section>
       ))}
 
-      {!error && summary && visible.length === 0 && <p className="empty">Nenhum curso com esses filtros.</p>}
+      {!error && courses.length > 0 && visible.length === 0 && <p className="empty">Nenhum curso com esses filtros.</p>}
 
       <section className="backup" aria-label="Portfólio">
         <h2>Portfólio</h2>
@@ -255,7 +266,7 @@ export function Tracker({ store, onUnauthorized, onLogout, today: fixedToday }: 
         </div>
       </section>
 
-      {store.backup && <BackupPanel backup={store.backup} onImported={() => load().catch(fail)} onExport={exportBackup} />}
+      {importCourses && <ImportPanel importCourses={importCourses} onImported={() => load().catch(fail)} />}
     </main>
   )
 }

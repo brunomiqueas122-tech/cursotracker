@@ -1,12 +1,20 @@
 import { render, screen, within } from '@testing-library/react'
 import userEvent from '@testing-library/user-event'
-import { createLocalStore } from './localStore'
-import { MemoryStorage } from './test-utils'
+import { course, createFakeStore } from './test-utils'
 import { Tracker } from './Tracker'
 
 vi.mock('./download', () => ({ downloadFile: vi.fn() }))
 
-const setup = () => render(<Tracker store={createLocalStore({ storage: new MemoryStorage() })} today="2026-10-27" />)
+const plan = () => [
+  course(1, '2026-10-25', { day: 1, name: 'LFD121 – módulos 1 a 4' }),
+  course(2, '2026-10-26', { day: 2, name: 'LFD121 – final', status: 'InProgress', hoursDone: 1 }),
+  course(3, '2026-10-26', { day: 2, name: 'Applied Skills', status: 'Completed', hoursDone: 2 }),
+  course(4, '2026-10-27', { day: 3, name: 'AWS Cloud Practitioner Essentials' }),
+  course(5, '2026-10-30', { day: 6, name: 'Intro to Machine Learning' }),
+]
+
+const setup = (props: Partial<Parameters<typeof Tracker>[0]> = {}) =>
+  render(<Tracker store={createFakeStore(plan())} today="2026-10-27" {...props} />)
 
 afterEach(() => vi.restoreAllMocks())
 
@@ -22,12 +30,11 @@ describe('Tracker', () => {
     setup()
     const agenda = await screen.findByRole('region', { name: 'Agenda' })
     expect(within(agenda).getByText('AWS Cloud Practitioner Essentials')).toBeInTheDocument()
-    expect(within(agenda).getAllByRole('button', { name: 'Mover para hoje' })).toHaveLength(3)
+    expect(within(agenda).getAllByRole('button', { name: 'Mover para hoje' })).toHaveLength(2)
 
     await userEvent.click(within(agenda).getAllByRole('button', { name: 'Mover para hoje' })[0])
 
-    await vi.waitFor(() => expect(within(agenda).getAllByRole('button', { name: 'Mover para hoje' })).toHaveLength(2))
-    expect(screen.getByText('Hoje')).toBeInTheDocument()
+    await vi.waitFor(() => expect(within(agenda).getAllByRole('button', { name: 'Mover para hoje' })).toHaveLength(1))
   })
 
   it('adds a new course to the plan', async () => {
@@ -43,19 +50,18 @@ describe('Tracker', () => {
 
     // Entra com a data de hoje: aparece no card e em "Para hoje"
     const links = await screen.findAllByRole('link', { name: 'Docker para iniciantes' })
-    expect(links.map((a) => a.getAttribute('href'))).toEqual(['#course-12', 'https://www.udemy.com/course/docker'])
+    expect(links.map((a) => a.getAttribute('href'))).toEqual(['#course-6', 'https://www.udemy.com/course/docker'])
     expect(screen.queryByRole('region', { name: 'Novo curso' })).not.toBeInTheDocument()
   })
 
   it('deletes a course after confirmation', async () => {
     vi.spyOn(window, 'confirm').mockReturnValue(true)
     setup()
-    const name = 'Curso curto de Cloud ou IA (badge Credly)'
-    const card = (await screen.findByRole('link', { name })).closest('article')!
+    const card = (await screen.findByRole('link', { name: 'Intro to Machine Learning' })).closest('article')!
 
     await userEvent.click(within(card).getByRole('button', { name: 'Excluir' }))
 
-    await vi.waitFor(() => expect(screen.queryByRole('link', { name })).not.toBeInTheDocument())
+    await vi.waitFor(() => expect(screen.queryByRole('link', { name: 'Intro to Machine Learning' })).not.toBeInTheDocument())
   })
 
   it('edits a course name', async () => {
@@ -63,21 +69,30 @@ describe('Tracker', () => {
     const card = (await screen.findByRole('link', { name: 'Intro to Machine Learning' })).closest('article')!
 
     await userEvent.click(within(card).getByRole('button', { name: 'Editar' }))
-    const name = screen.getByDisplayValue('Intro to Machine Learning')
-    await fill(name, 'Intermediate Machine Learning')
+    await fill(screen.getByDisplayValue('Intro to Machine Learning'), 'Intermediate Machine Learning')
     await userEvent.click(screen.getByRole('button', { name: 'Salvar alterações' }))
 
     expect(await screen.findByRole('link', { name: 'Intermediate Machine Learning' })).toBeInTheDocument()
   })
 
-  it('reminds to back up once there is progress and hides after downloading', async () => {
-    const store = createLocalStore({ storage: new MemoryStorage() })
-    await store.updateProgress(1, { hoursDone: 1, status: 'InProgress', certificateReceived: false, certificateUrl: null, onLinkedIn: false, notes: null })
-    render(<Tracker store={store} today="2026-10-27" />)
+  it('invites to discover courses when the plan is empty', async () => {
+    const onDiscover = vi.fn()
+    render(<Tracker store={createFakeStore([])} today="2026-10-27" onDiscover={onDiscover} />)
 
-    expect(await screen.findByText('Você ainda não fez nenhum backup do seu progresso.')).toBeInTheDocument()
-    await userEvent.click(within(screen.getByRole('status')).getByRole('button', { name: 'Baixar backup' }))
+    expect(await screen.findByText('Seu plano ainda está vazio')).toBeInTheDocument()
+    await userEvent.click(screen.getAllByRole('button', { name: 'Descobrir cursos com IA' })[1])
 
-    expect(screen.queryByText('Você ainda não fez nenhum backup do seu progresso.')).not.toBeInTheDocument()
+    expect(onDiscover).toHaveBeenCalled()
+  })
+
+  it('imports the old phone backup', async () => {
+    const importCourses = vi.fn().mockResolvedValue({ imported: 2 })
+    setup({ importCourses })
+
+    const file = new File(['{"courses":[]}'], 'backup.json', { type: 'application/json' })
+    await userEvent.upload(await screen.findByLabelText('Escolher arquivo de backup'), file)
+
+    expect(importCourses).toHaveBeenCalledWith('{"courses":[]}')
+    expect(await screen.findByText('2 curso(s) importado(s) para sua conta.')).toBeInTheDocument()
   })
 })

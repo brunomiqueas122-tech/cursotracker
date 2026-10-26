@@ -1,13 +1,7 @@
 import { api } from './api'
 import type { Course, CourseDetails, DashboardSummary, UpdateProgressRequest } from './types'
 
-export interface Backup {
-  /** Gera o arquivo de backup e registra a data dele */
-  exportJson(): string
-  importJson(json: string): void
-  lastBackupAt(): string | null
-}
-
+/** Operações do plano usadas pela tela; nos testes entra uma versão em memória. */
 export interface CourseStore {
   courses(signal?: AbortSignal): Promise<Course[]>
   dashboard(signal?: AbortSignal): Promise<DashboardSummary>
@@ -15,8 +9,6 @@ export interface CourseStore {
   createCourse(details: CourseDetails): Promise<Course>
   updateCourse(id: number, details: CourseDetails): Promise<Course>
   deleteCourse(id: number): Promise<void>
-  /** Só existe quando os dados ficam no aparelho */
-  backup?: Backup
 }
 
 export const httpStore: CourseStore = {

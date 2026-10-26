@@ -1,12 +1,38 @@
-import type { Course, CourseDetails, DashboardSummary, UpdateProgressRequest } from './types'
+import type {
+  Course,
+  CourseDetails,
+  DashboardSummary,
+  Me,
+  Profile,
+  ProfileAnswers,
+  Recommendations,
+  UpdateProgressRequest,
+} from './types'
 
-interface ValidationProblem {
+interface ProblemDetails {
+  detail?: string
   errors?: Record<string, string[]>
 }
 
 export class UnauthorizedError extends Error {
   constructor() {
     super('Sua sessão expirou. Entre novamente.')
+  }
+}
+
+export class NotFoundError extends Error {
+  constructor() {
+    super('Não encontrado.')
+  }
+}
+
+async function problemMessage(response: Response): Promise<string | null> {
+  try {
+    const problem = (await response.json()) as ProblemDetails
+    const messages = Object.values(problem.errors ?? {}).flat()
+    return messages.length > 0 ? messages.join(' ') : (problem.detail ?? null)
+  } catch {
+    return null
   }
 }
 
@@ -17,56 +43,64 @@ async function send(url: string, init?: RequestInit): Promise<Response> {
   })
   if (response.ok) return response
 
-  switch (response.status) {
-    case 400: {
-      const problem = (await response.json()) as ValidationProblem
-      const messages = Object.values(problem.errors ?? {}).flat()
-      throw new Error(messages.join(' ') || 'Dados inválidos.')
-    }
-    case 401:
-      throw new UnauthorizedError()
-    case 404:
-      throw new Error('Curso não encontrado.')
-    case 429:
-      throw new Error('Muitas tentativas. Espere 1 minuto e tente de novo.')
-    default:
-      throw new Error('Não foi possível falar com o servidor. Tente de novo em instantes.')
-  }
+  if (response.status === 401) throw new UnauthorizedError()
+  if (response.status === 404) throw new NotFoundError()
+  const message = await problemMessage(response)
+  if (message) throw new Error(message)
+  if (response.status === 429) throw new Error('Muitas tentativas. Espere 1 minuto e tente de novo.')
+  throw new Error('Não foi possível falar com o servidor. Tente de novo em instantes.')
 }
 
 async function json<T>(url: string, init?: RequestInit): Promise<T> {
   return (await (await send(url, init)).json()) as T
 }
 
+const post = (body: unknown): RequestInit => ({ method: 'POST', body: JSON.stringify(body) })
+const put = (body: unknown): RequestInit => ({ method: 'PUT', body: JSON.stringify(body) })
+
 export const api = {
   courses: (signal?: AbortSignal) => json<Course[]>('/api/courses', { signal }),
   dashboard: (signal?: AbortSignal) => json<DashboardSummary>('/api/dashboard', { signal }),
-  updateProgress: (id: number, body: UpdateProgressRequest) =>
-    json<Course>(`/api/courses/${id}/progress`, { method: 'PUT', body: JSON.stringify(body) }),
-  createCourse: (body: CourseDetails) => json<Course>('/api/courses', { method: 'POST', body: JSON.stringify(body) }),
-  updateCourse: (id: number, body: CourseDetails) =>
-    json<Course>(`/api/courses/${id}`, { method: 'PUT', body: JSON.stringify(body) }),
+  updateProgress: (id: number, body: UpdateProgressRequest) => json<Course>(`/api/courses/${id}/progress`, put(body)),
+  createCourse: (body: CourseDetails) => json<Course>('/api/courses', post(body)),
+  updateCourse: (id: number, body: CourseDetails) => json<Course>(`/api/courses/${id}`, put(body)),
   async deleteCourse(id: number): Promise<void> {
     await send(`/api/courses/${id}`, { method: 'DELETE' })
   },
+  /** Arquivo "Baixar backup" do app antigo, enviado como está */
+  importCourses: (backupJson: string) =>
+    json<{ imported: number }>('/api/courses/import', { method: 'POST', body: backupJson }),
 
-  async isLoggedIn(signal?: AbortSignal): Promise<boolean> {
+  async me(signal?: AbortSignal): Promise<Me | null> {
     try {
-      await send('/api/auth/me', { signal })
-      return true
+      return await json<Me>('/api/auth/me', { signal })
     } catch (e) {
-      if (e instanceof UnauthorizedError) return false
+      if (e instanceof UnauthorizedError) return null
       throw e
     }
   },
-  async login(password: string): Promise<void> {
+  async login(email: string, password: string): Promise<void> {
     try {
-      await send('/api/auth/login', { method: 'POST', body: JSON.stringify({ password }) })
+      await send('/api/auth/login', post({ email, password }))
     } catch (e) {
-      throw e instanceof UnauthorizedError ? new Error('Senha incorreta.') : e
+      throw e instanceof UnauthorizedError ? new Error('E-mail ou senha incorretos.') : e
     }
+  },
+  async register(email: string, password: string, inviteCode: string): Promise<void> {
+    await send('/api/auth/register', post({ email, password, inviteCode }))
   },
   async logout(): Promise<void> {
     await send('/api/auth/logout', { method: 'POST' })
   },
+
+  async profile(signal?: AbortSignal): Promise<Profile | null> {
+    try {
+      return await json<Profile>('/api/profile', { signal })
+    } catch (e) {
+      if (e instanceof NotFoundError) return null
+      throw e
+    }
+  },
+  saveProfile: (answers: ProfileAnswers) => json<Profile>('/api/profile', put(answers)),
+  recommendations: (refinement: string | null) => json<Recommendations>('/api/recommendations', post({ refinement })),
 }

@@ -1,4 +1,4 @@
-import type { Course, CourseStatus } from './types'
+import type { Course, CourseLanguage, CourseStatus, LearningGoal, SkillLevel } from './types'
 
 export const statusLabels: Record<CourseStatus, string> = {
   NotStarted: 'Não iniciado',
@@ -37,4 +37,23 @@ export function groupByDay(courses: Course[]): DayGroup[] {
     groups.set(course.day, group)
   }
   return [...groups.values()].sort((a, b) => a.day - b.day)
+}
+
+export const goalLabels: Record<LearningGoal, string> = {
+  GetJob: 'Conseguir um emprego',
+  GrowInCurrentJob: 'Crescer no trabalho atual',
+  ChangeCareer: 'Mudar de área',
+  Curiosity: 'Aprender por interesse',
+}
+
+export const levelLabels: Record<SkillLevel, string> = {
+  Beginner: 'Iniciante',
+  Intermediate: 'Intermediário',
+  Advanced: 'Avançado',
+}
+
+export const languageLabels: Record<CourseLanguage, string> = {
+  Portuguese: 'Português',
+  English: 'Inglês',
+  Any: 'Tanto faz',
 }
