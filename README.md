@@ -1,67 +1,81 @@
 # CursoTracker
 
-Acompanhamento de cursos gratuitos com certificado.
-
-**App no celular:** https://brunomiqueas122-tech.github.io/cursotracker/ — abra no navegador e use "Adicionar à tela inicial". Os dados ficam no aparelho (use Backup para guardar uma cópia).
+Acompanhe cursos gratuitos com certificado. Crie sua conta, conte o que você procura e a IA pesquisa na web cursos **gratuitos com certificado gratuito** para o seu perfil.
 
 ## Funcionalidades
 
-- Plano por dia com "Para hoje" e "Atrasados" (mover para hoje em um toque)
-- Criar, editar, reagendar e excluir cursos
-- Cronômetro de estudo que soma as horas ao parar
-- Dashboard: % concluído, certificados, horas estimadas x feitas (total e por dia)
+- Contas (e-mail e senha) com código de convite
+- Onboarding: perfil com o que você procura, objetivo, nível, idioma e horas por semana
+- Descobrir cursos com IA (Claude + busca na web), com ajuste da busca e limite diário por usuário
+- Plano por dia com "Para hoje" e "Atrasados"; criar, editar, reagendar e excluir cursos
+- Cronômetro de estudo, dashboard de progresso, lembretes no calendário (.ics)
 - LinkedIn: formulário de certificação pré-preenchido e post pronto ao concluir
-- Lembretes no calendário (.ics com alarme às 9h)
-- Backup/restauração em arquivo, com lembrete a cada 7 dias
-- Exporta `certificados.json` para a seção Certificações do portfólio
+- Exporta `certificados.json` para o portfólio
+- Importa o backup da versão antiga (só no celular)
 
-## Modos
-
-| Modo | Dados | Como gerar |
-|---|---|---|
-| Celular (GitHub Pages) | `localStorage` do aparelho, offline | `npm run build:pages` — publicado pelo GitHub Actions a cada push na `main` |
-| PC / servidor | API .NET + SQLite, com login | `dotnet run` + `npm run dev`, ou a imagem Docker (`Auth__Password` obrigatório) |
-
-O "Dia N" vem da data: a data mais antiga do plano é o dia 1.
-
-## Rodar (modo servidor)
+## Rodar localmente
 
 ```bash
-# terminal 1 — API em http://localhost:5080 (cria cursotracker.db e aplica o seed na 1ª vez; senha local: dev)
-cd backend/CursoTracker.Api
-dotnet run
+docker compose up -d                 # PostgreSQL local
 
-# terminal 2 — app em http://localhost:5173
-cd frontend
-npm install
-npm run dev
+cd backend/CursoTracker.Api          # API em http://localhost:5080 (código de convite: dev)
+ANTHROPIC_API_KEY=sk-ant-... dotnet run
+
+cd frontend && npm install && npm run dev   # app em http://localhost:5173
 ```
 
-### Banco (modo servidor)
+Sem `ANTHROPIC_API_KEY` tudo funciona, menos a busca com IA (que responde um erro amigável).
+
+### Banco
 
 As migrations são aplicadas sozinhas ao iniciar a API. Para criar uma nova depois de mudar o modelo:
 
 ```bash
 dotnet tool restore
 cd backend/CursoTracker.Api
-Auth__Password=dev dotnet ef migrations add NomeDaMudanca --output-dir Data/Migrations
+ConnectionStrings__Default="Host=localhost;Database=design" Auth__InviteCode=x \
+  dotnet ef migrations add NomeDaMudanca --output-dir Data/Migrations
 ```
 
 ## Testes
 
 ```bash
-cd backend && dotnet test
+cd backend && dotnet test      # precisa do Docker (sobe um PostgreSQL de teste)
 cd frontend && npm test
 ```
+
+## Deploy (Render + Neon, plano grátis)
+
+1. Crie um banco no [Neon](https://neon.tech) e copie a URL de conexão (`postgresql://...`).
+2. Crie uma chave em [console.anthropic.com](https://console.anthropic.com) e adicione crédito.
+3. No [Render](https://render.com): **New → Blueprint** e escolha este repositório. Ele lê o `render.yaml` e pede:
+   - `ConnectionStrings__Default`: a URL do Neon
+   - `ANTHROPIC_API_KEY`: a chave da Anthropic
+   - `Auth__InviteCode`: o código que você passa para quem pode criar conta
+
+Cada push na `main` publica de novo. No plano grátis o servidor "dorme" após 15 min sem uso; a primeira abertura depois disso leva cerca de 1 minuto.
+
+## Configuração
+
+| Variável | Para que serve | Padrão |
+|---|---|---|
+| `ConnectionStrings__Default` | PostgreSQL (formato Npgsql ou URL `postgresql://`) | obrigatória |
+| `Auth__InviteCode` | Código exigido no cadastro | obrigatória |
+| `ANTHROPIC_API_KEY` | Busca de cursos com IA | — |
+| `Ai__Model` | Modelo do Claude | `claude-opus-5-5` |
+| `Ai__DailySearchLimit` | Buscas com IA por usuário por dia | `5` |
+| `Ai__MaxWebSearches` | Pesquisas na web por busca | `6` |
 
 ## API
 
 | Método | Rota | |
 |---|---|---|
-| GET | `/api/courses?status=&area=` | Lista ordenada por dia |
-| GET | `/api/courses/{id}` | Um curso |
-| POST | `/api/courses` | Novo curso (data, nome, plataforma, área, link, horas estimadas) |
-| PUT | `/api/courses/{id}` | Edita ou reagenda; os dias do plano são recalculados |
-| DELETE | `/api/courses/{id}` | Remove o curso |
+| POST | `/api/auth/register` · `/login` · `/logout` | Conta (cookie) |
+| GET | `/api/auth/me` | Usuário logado e se já tem perfil |
+| GET/PUT | `/api/profile` | Perfil usado pela IA |
+| POST | `/api/recommendations` | Busca cursos com IA (`{ refinement? }`) |
+| GET/POST | `/api/courses` | Lista / cria curso |
+| PUT/DELETE | `/api/courses/{id}` | Edita ou reagenda / remove |
 | PUT | `/api/courses/{id}/progress` | Horas, status, certificado, LinkedIn, anotações |
-| GET | `/api/dashboard` | % concluído, certificados, horas (total e por dia) |
+| POST | `/api/courses/import` | Importa o backup da versão antiga |
+| GET | `/api/dashboard` | % concluído, certificados, horas |
