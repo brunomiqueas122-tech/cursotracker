@@ -8,6 +8,7 @@ import { DashboardPanel } from './components/DashboardPanel'
 import { agenda, isOverdue, toIsoDate } from './domain/agenda'
 import { backupReminder } from './domain/backupReminder'
 import { buildCalendar } from './domain/calendar'
+import { portfolioCertificates } from './domain/certificates'
 import { downloadFile } from './download'
 import { loadTimer, saveTimer, type RunningTimer } from './timer'
 import { formatDate, groupByDay, statusLabels } from './format'
@@ -127,6 +128,10 @@ export function Tracker({ store, onUnauthorized, onLogout, today: fixedToday }: 
   const pendingCount = courses.filter((c) => c.status === 'NotStarted' || c.status === 'InProgress').length
   const exportCalendar = () => downloadFile('cursotracker.ics', buildCalendar(courses, new Date()), 'text/calendar')
 
+  const certificates = portfolioCertificates(courses)
+  const exportCertificates = () =>
+    downloadFile('certificados.json', JSON.stringify(certificates, null, 2), 'application/json')
+
   const reminder = store.backup ? backupReminder(courses, lastBackup, today) : null
 
   const areas = useMemo(() => [...new Set(courses.map((c) => c.area))].sort(), [courses])
@@ -235,6 +240,20 @@ export function Tracker({ store, onUnauthorized, onLogout, today: fixedToday }: 
       ))}
 
       {!error && summary && visible.length === 0 && <p className="empty">Nenhum curso com esses filtros.</p>}
+
+      <section className="backup" aria-label="Portfólio">
+        <h2>Portfólio</h2>
+        <p>
+          {certificates.length > 0
+            ? `${certificates.length} certificado(s) prontos para o seu site. Baixe o arquivo e atualize o certificados.json do portfólio.`
+            : 'Quando você concluir um curso e marcar o certificado como recebido, ele aparece aqui para ir ao seu portfólio.'}
+        </p>
+        <div className="backup-actions">
+          <button type="button" onClick={exportCertificates} disabled={certificates.length === 0}>
+            Exportar certificados
+          </button>
+        </div>
+      </section>
 
       {store.backup && <BackupPanel backup={store.backup} onImported={() => load().catch(fail)} onExport={exportBackup} />}
     </main>
