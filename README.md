@@ -4,6 +4,17 @@ Acompanhamento de cursos gratuitos com certificado.
 
 **App no celular:** https://brunomiqueas122-tech.github.io/cursotracker/ — abra no navegador e use "Adicionar à tela inicial". Os dados ficam no aparelho (use Backup para guardar uma cópia).
 
+## Funcionalidades
+
+- Plano por dia com "Para hoje" e "Atrasados" (mover para hoje em um toque)
+- Criar, editar, reagendar e excluir cursos
+- Cronômetro de estudo que soma as horas ao parar
+- Dashboard: % concluído, certificados, horas estimadas x feitas (total e por dia)
+- LinkedIn: formulário de certificação pré-preenchido e post pronto ao concluir
+- Lembretes no calendário (.ics com alarme às 9h)
+- Backup/restauração em arquivo, com lembrete a cada 7 dias
+- Exporta `certificados.json` para a seção Certificações do portfólio
+
 ## Modos
 
 | Modo | Dados | Como gerar |
