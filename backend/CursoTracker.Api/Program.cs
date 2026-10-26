@@ -14,8 +14,8 @@ using Microsoft.EntityFrameworkCore;
 
 var builder = WebApplication.CreateBuilder(args);
 
-var connectionString = builder.Configuration.GetConnectionString("Default")
-    ?? throw new InvalidOperationException("Defina a conexão do PostgreSQL em ConnectionStrings:Default.");
+var connectionString = ConnectionStrings.ToNpgsql(builder.Configuration.GetConnectionString("Default")
+    ?? throw new InvalidOperationException("Defina a conexão do PostgreSQL em ConnectionStrings:Default."));
 if (string.IsNullOrEmpty(builder.Configuration["Auth:InviteCode"]))
     throw new InvalidOperationException("Defina o código de convite do cadastro em Auth:InviteCode (variável Auth__InviteCode).");
 
@@ -84,6 +84,7 @@ app.UseRateLimiter();
 await using (var scope = app.Services.CreateAsyncScope())
     await scope.ServiceProvider.GetRequiredService<AppDbContext>().Database.MigrateAsync(app.Lifetime.ApplicationStopping);
 
+app.MapGet("/api/health", () => TypedResults.Ok("ok"));
 app.MapAuth();
 var api = app.MapGroup("").RequireAuthorization();
 api.MapCourses();
