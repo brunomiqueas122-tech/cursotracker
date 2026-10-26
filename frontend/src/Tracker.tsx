@@ -7,6 +7,7 @@ import { CourseForm } from './components/CourseForm'
 import { DashboardPanel } from './components/DashboardPanel'
 import { agenda, isOverdue, toIsoDate } from './domain/agenda'
 import { backupReminder } from './domain/backupReminder'
+import { buildCalendar } from './domain/calendar'
 import { downloadFile } from './download'
 import { formatDate, groupByDay, statusLabels } from './format'
 import type { CourseStore } from './store'
@@ -114,6 +115,9 @@ export function Tracker({ store, onUnauthorized, onLogout, today: fixedToday }: 
     downloadFile(`cursotracker-backup-${today}.json`, store.backup.exportJson(), 'application/json')
     setLastBackup(store.backup.lastBackupAt())
   }
+  const pendingCount = courses.filter((c) => c.status === 'NotStarted' || c.status === 'InProgress').length
+  const exportCalendar = () => downloadFile('cursotracker.ics', buildCalendar(courses, new Date()), 'text/calendar')
+
   const reminder = store.backup ? backupReminder(courses, lastBackup, today) : null
 
   const areas = useMemo(() => [...new Set(courses.map((c) => c.area))].sort(), [courses])
@@ -170,6 +174,15 @@ export function Tracker({ store, onUnauthorized, onLogout, today: fixedToday }: 
             ))}
           </select>
         </label>
+        <button
+          type="button"
+          className="secondary calendar"
+          onClick={exportCalendar}
+          disabled={pendingCount === 0}
+          title="Baixa um arquivo .ics com um lembrete às 9h no dia de cada curso pendente"
+        >
+          Adicionar ao calendário
+        </button>
         <button type="button" className="new-course" onClick={() => setAdding(true)} disabled={adding}>
           + Novo curso
         </button>
