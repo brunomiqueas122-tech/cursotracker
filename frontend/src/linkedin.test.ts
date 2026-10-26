@@ -1,4 +1,4 @@
-import { linkedInCertificationUrl } from './linkedin'
+import { linkedInCertificationUrl, linkedInPostText, linkedInShareUrl } from './linkedin'
 import type { Course } from './types'
 
 const course: Course = {
@@ -28,5 +28,26 @@ describe('linkedInCertificationUrl', () => {
 
     expect(url.searchParams.get('issueMonth')).toBe('1')
     expect(url.searchParams.has('certUrl')).toBe(false)
+  })
+})
+
+describe('linkedInPostText', () => {
+  it('announces the course with certificate link and hashtags from the area', () => {
+    expect(linkedInPostText({ ...course, area: 'Cloud / .NET' })).toBe(
+      'Concluí o curso "Developing Secure Software (LFD121)", pela Linux Foundation! 🎓\n\n' +
+        'Certificado: https://cert.example.com/123\n\n' +
+        '#Cloud #NET #certificação #aprendizadoContínuo',
+    )
+  })
+
+  it('skips the certificate line when there is no link', () => {
+    expect(linkedInPostText({ ...course, certificateUrl: null })).not.toContain('Certificado')
+  })
+
+  it('opens the LinkedIn composer with the text', () => {
+    const url = new URL(linkedInShareUrl(course))
+
+    expect(url.searchParams.get('shareActive')).toBe('true')
+    expect(url.searchParams.get('text')).toBe(linkedInPostText(course))
   })
 })

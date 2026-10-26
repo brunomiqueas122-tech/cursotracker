@@ -1,6 +1,6 @@
 import { useState } from 'react'
 import { formatHours, statusLabels } from '../format'
-import { linkedInCertificationUrl } from '../linkedin'
+import { linkedInCertificationUrl, linkedInShareUrl } from '../linkedin'
 import { courseStatuses, type Course, type CourseDetails, type CourseStatus, type UpdateProgressRequest } from '../types'
 import { CourseForm } from './CourseForm'
 
@@ -232,6 +232,11 @@ export function CourseCard({ course, onSave, onEdit, onDelete, areas = [], overd
         {course.certificateUrl && (
           <a href={course.certificateUrl} target="_blank" rel="noreferrer">
             Ver certificado
+          </a>
+        )}
+        {course.status === 'Completed' && (
+          <a href={linkedInShareUrl(course)} target="_blank" rel="noreferrer">
+            Compartilhar no LinkedIn
           </a>
         )}
         {course.status !== 'Completed' && (

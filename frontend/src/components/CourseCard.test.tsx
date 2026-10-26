@@ -87,4 +87,13 @@ describe('CourseCard', () => {
     rerender(<CourseCard course={{ ...course, status: 'Completed', onLinkedIn: true }} onSave={vi.fn()} />)
     expect(screen.queryByText('Adicionar ao LinkedIn')).not.toBeInTheDocument()
   })
+
+  it('offers a ready-made LinkedIn post for completed courses', () => {
+    render(<CourseCard course={{ ...course, status: 'Completed' }} onSave={vi.fn()} />)
+
+    expect(screen.getByRole('link', { name: 'Compartilhar no LinkedIn' })).toHaveAttribute(
+      'href',
+      expect.stringContaining('linkedin.com/feed/?shareActive=true'),
+    )
+  })
 })

@@ -16,3 +16,23 @@ export function linkedInCertificationUrl(course: Course, today = new Date()): st
   if (course.certificateUrl) params.set('certUrl', course.certificateUrl)
   return `https://www.linkedin.com/profile/add?${params}`
 }
+
+function hashtags(area: string): string[] {
+  const fromArea = area.split(/[^\p{L}\p{N}]+/u).filter(Boolean)
+  return [...new Set([...fromArea, 'certificação', 'aprendizadoContínuo'])].map((tag) => `#${tag}`)
+}
+
+export function linkedInPostText(course: Course): string {
+  return [
+    `Concluí o curso "${course.name}", pela ${course.platform}! 🎓`,
+    course.certificateUrl ? `Certificado: ${course.certificateUrl}` : null,
+    hashtags(course.area).join(' '),
+  ]
+    .filter((line): line is string => line !== null)
+    .join('\n\n')
+}
+
+/** Abre a caixa de nova publicação do LinkedIn com o texto pronto para revisar. */
+export function linkedInShareUrl(course: Course): string {
+  return `https://www.linkedin.com/feed/?shareActive=true&text=${encodeURIComponent(linkedInPostText(course))}`
+}
