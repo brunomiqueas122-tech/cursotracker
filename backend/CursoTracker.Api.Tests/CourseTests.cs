@@ -7,7 +7,7 @@ public class CourseTests
     static readonly DateTimeOffset Now = new(2026, 10, 25, 20, 0, 0, TimeSpan.Zero);
 
     static Course NewCourse() =>
-        new(1, new DateOnly(2026, 10, 25), "Linux Foundation", "LFD121", "Segurança", "https://example.com", 5);
+        new("user-1", 1, new DateOnly(2026, 10, 25), "Linux Foundation", "LFD121", "Segurança", "https://example.com", 5);
 
     static CourseProgress Progress(double hours, CourseStatus status, bool cert = false, string? certUrl = null) =>
         new(hours, status, cert, certUrl, OnLinkedIn: false, Notes: null);

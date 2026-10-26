@@ -9,7 +9,7 @@ public class DashboardSummaryTests
 
     static Course Course(int day, double estimated, double done, CourseStatus status, bool cert = false)
     {
-        var course = new Course(day, new DateOnly(2026, 10, 24 + day), "Plataforma", $"Curso {day}", "Cloud", "https://example.com", estimated);
+        var course = new Course("user-1", day, new DateOnly(2026, 10, 24 + day), "Plataforma", $"Curso {day}", "Cloud", "https://example.com", estimated);
         course.UpdateProgress(new CourseProgress(done, status, cert, null, false, null), Now);
         return course;
     }

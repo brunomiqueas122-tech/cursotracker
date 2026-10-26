@@ -27,6 +27,7 @@ public sealed record CourseDetails(
 public sealed class Course
 {
     public int Id { get; private set; }
+    public string UserId { get; private set; } = "";
     public int Day { get; private set; }
     public DateOnly Date { get; private set; }
     public string Platform { get; private set; } = "";
@@ -44,10 +45,12 @@ public sealed class Course
 
     private Course() { } // EF Core
 
-    public Course(int day, DateOnly date, string platform, string name, string area, string url, double estimatedHours)
+    public Course(string userId, int day, DateOnly date, string platform, string name, string area, string url, double estimatedHours)
     {
+        ArgumentException.ThrowIfNullOrWhiteSpace(userId);
         ArgumentOutOfRangeException.ThrowIfNegativeOrZero(day);
 
+        UserId = userId;
         Day = day;
         Status = CourseStatus.NotStarted;
         UpdateDetails(new CourseDetails(date, platform, name, area, url, estimatedHours));

@@ -1,4 +1,5 @@
 using CursoTracker.Api.Data;
+using CursoTracker.Api.Features.Auth;
 using Microsoft.AspNetCore.Http.HttpResults;
 using Microsoft.EntityFrameworkCore;
 
@@ -12,9 +13,10 @@ public static class DashboardEndpoints
         return app;
     }
 
-    static async Task<Ok<DashboardSummary>> GetDashboard(AppDbContext db, CancellationToken ct)
+    static async Task<Ok<DashboardSummary>> GetDashboard(HttpContext http, AppDbContext db, CancellationToken ct)
     {
-        var courses = await db.Courses.AsNoTracking().ToListAsync(ct);
+        var userId = http.User.UserId();
+        var courses = await db.Courses.AsNoTracking().Where(c => c.UserId == userId).ToListAsync(ct);
         return TypedResults.Ok(DashboardSummary.From(courses));
     }
 }

@@ -5,7 +5,7 @@ namespace CursoTracker.Api.Tests;
 public class CoursePlanTests
 {
     static Course On(string date) =>
-        new(1, DateOnly.Parse(date), "Plataforma", "Curso", "Cloud", "https://example.com", 2);
+        new("user-1", 1, DateOnly.Parse(date), "Plataforma", "Curso", "Cloud", "https://example.com", 2);
 
     [Fact]
     public void Earliest_date_is_day_one_and_gaps_are_kept()
