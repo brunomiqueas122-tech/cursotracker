@@ -1,20 +1,25 @@
 # CursoTracker
 
-App para acompanhar cursos gratuitos com certificado. Dados iniciais: `seed-courses.json` (usar como seed do banco na primeira execução).
+App para acompanhar cursos gratuitos com certificado. Cada pessoa tem conta; no primeiro login responde um perfil e a IA pesquisa cursos gratuitos com certificado gratuito para ela.
 
 ## Stack
-- Backend: ASP.NET Core (.NET LTS atual), Minimal APIs, EF Core + SQLite
-- Frontend: React + TypeScript + Vite
-- Testes: xUnit (backend), Vitest (frontend)
+- Backend: ASP.NET Core (.NET LTS atual), Minimal APIs, EF Core + PostgreSQL (Neon em produção, Docker local)
+- Contas: ASP.NET Core Identity com cookie; cadastro exige código de convite (`Auth:InviteCode`)
+- IA: SDK oficial da Anthropic para C#, `claude-opus-5-5` + web search, atrás de `ICourseFinder`
+- Frontend: React + TypeScript + Vite, servido pela própria API (`wwwroot`)
+- Testes: xUnit + Testcontainers/PostgreSQL (backend), Vitest (frontend)
+- Deploy: Render (Docker, `render.yaml`) + Neon
 
 ## Arquitetura
-- Vertical slices por feature (`Features/Cursos`, `Features/Dashboard`), sem camadas genéricas vazias
+- Vertical slices por feature (`Features/Auth`, `Features/Cursos`, `Features/Dashboard`, `Features/Profile`, `Features/Recommendations`), sem camadas genéricas vazias
 - Domínio sem dependência de infraestrutura; validação na borda (FluentValidation)
 - Sem repositório sobre EF Core; usar DbContext direto
 - Abstração só quando houver segundo uso real (YAGNI)
+- Todo dado de curso/perfil é filtrado pelo usuário logado
 
 ## Domínio
-Course (campos iguais ao seed): day, date, platform, name, area, url, estimatedHours, hoursDone, status (NotStarted|InProgress|Completed|Skipped), completedAt, certificateReceived, certificateUrl, onLinkedIn, notes.
+Course (por usuário): day, date, platform, name, area, url, estimatedHours, hoursDone, status (NotStarted|InProgress|Completed|Skipped), completedAt, certificateReceived, certificateUrl, onLinkedIn, notes. "Dia N" é derivado da data (data mais antiga = dia 1).
+UserProfile: lookingFor, goal, level, language, hoursPerWeek + limite diário de buscas com IA.
 Dashboard: % concluído, certificados, horas estimadas vs. feitas (total e por dia).
 
 ## Padrões

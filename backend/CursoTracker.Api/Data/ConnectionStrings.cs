@@ -10,10 +10,17 @@ public static class ConnectionStrings
     /// </summary>
     public static string ToNpgsql(string value)
     {
-        if (!value.StartsWith("postgres://", StringComparison.OrdinalIgnoreCase) &&
-            !value.StartsWith("postgresql://", StringComparison.OrdinalIgnoreCase))
-            return value;
+        var isUrl = value.StartsWith("postgres://", StringComparison.OrdinalIgnoreCase) ||
+                    value.StartsWith("postgresql://", StringComparison.OrdinalIgnoreCase);
+        var builder = isUrl ? FromUrl(value) : new NpgsqlConnectionStringBuilder(value);
+        // A imagem Docker não tem a biblioteca do Kerberos; sem isso o Npgsql loga erro a cada conexão
+        if (!value.Contains("GSS", StringComparison.OrdinalIgnoreCase))
+            builder.GssEncryptionMode = GssEncryptionMode.Disable;
+        return builder.ConnectionString;
+    }
 
+    static NpgsqlConnectionStringBuilder FromUrl(string value)
+    {
         var uri = new Uri(value);
         var credentials = uri.UserInfo.Split(':', 2);
         var builder = new NpgsqlConnectionStringBuilder
@@ -30,6 +37,6 @@ public static class ConnectionStrings
             if (parts[0].Equals("sslmode", StringComparison.OrdinalIgnoreCase) && parts.Length == 2)
                 builder.SslMode = Enum.Parse<SslMode>(parts[1], ignoreCase: true);
         }
-        return builder.ConnectionString;
+        return builder;
     }
 }

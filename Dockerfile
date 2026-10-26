@@ -20,4 +20,6 @@ COPY --from=web /web/dist ./wwwroot
 ENV ASPNETCORE_HTTP_PORTS=8080 \
     ASPNETCORE_FORWARDEDHEADERS_ENABLED=true
 EXPOSE 8080
+# Usuário sem privilégios que já vem na imagem do .NET
+USER $APP_UID
 ENTRYPOINT ["dotnet", "CursoTracker.Api.dll"]

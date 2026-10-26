@@ -17,13 +17,16 @@ public class ConnectionStringsTests
         Assert.Equal("bruno", result.Username);
         Assert.Equal("s3nh@forte", result.Password);
         Assert.Equal(SslMode.Require, result.SslMode);
+        Assert.Equal(GssEncryptionMode.Disable, result.GssEncryptionMode);
     }
 
     [Fact]
-    public void Keeps_npgsql_format_untouched()
+    public void Keeps_npgsql_format_values()
     {
-        const string value = "Host=localhost;Database=cursotracker;Username=postgres;Password=postgres";
+        var result = new NpgsqlConnectionStringBuilder(ConnectionStrings.ToNpgsql(
+            "Host=localhost;Database=cursotracker;Username=postgres;Password=postgres"));
 
-        Assert.Equal(value, ConnectionStrings.ToNpgsql(value));
+        Assert.Equal(("localhost", "cursotracker", "postgres"), (result.Host, result.Database, result.Username));
+        Assert.Equal(GssEncryptionMode.Disable, result.GssEncryptionMode);
     }
 }
