@@ -9,6 +9,7 @@ import { agenda, isOverdue, toIsoDate } from './domain/agenda'
 import { backupReminder } from './domain/backupReminder'
 import { buildCalendar } from './domain/calendar'
 import { downloadFile } from './download'
+import { loadTimer, saveTimer, type RunningTimer } from './timer'
 import { formatDate, groupByDay, statusLabels } from './format'
 import type { CourseStore } from './store'
 import {
@@ -38,6 +39,7 @@ export function Tracker({ store, onUnauthorized, onLogout, today: fixedToday }: 
   const [status, setStatus] = useState<CourseStatus | ''>('')
   const [area, setArea] = useState('')
   const [adding, setAdding] = useState(false)
+  const [timer, setTimer] = useState<RunningTimer | null>(() => loadTimer())
   const [lastBackup, setLastBackup] = useState(() => store.backup?.lastBackupAt() ?? null)
 
   const fail = useCallback(
@@ -109,6 +111,13 @@ export function Tracker({ store, onUnauthorized, onLogout, today: fixedToday }: 
   const deleteCourse = (id: number) => mutate(() => store.deleteCourse(id))
   const moveToToday = (c: Course) =>
     editCourse(c.id, { date: today, platform: c.platform, name: c.name, area: c.area, url: c.url, estimatedHours: c.estimatedHours })
+
+  const changeTimer = (next: RunningTimer | null) => {
+    saveTimer(next)
+    setTimer(next)
+  }
+  const startTimer = (courseId: number) => changeTimer({ courseId, startedAt: new Date().toISOString() })
+  const clearTimer = () => changeTimer(null)
 
   function exportBackup() {
     if (!store.backup) return
@@ -216,6 +225,10 @@ export function Tracker({ store, onUnauthorized, onLogout, today: fixedToday }: 
               onDelete={deleteCourse}
               areas={areas}
               overdue={isOverdue(course, today)}
+              timerStartedAt={timer?.courseId === course.id ? timer.startedAt : null}
+              timerElsewhere={timer !== null && timer.courseId !== course.id}
+              onStartTimer={startTimer}
+              onClearTimer={clearTimer}
             />
           ))}
         </section>

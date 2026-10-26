@@ -96,4 +96,40 @@ describe('CourseCard', () => {
       expect.stringContaining('linkedin.com/feed/?shareActive=true'),
     )
   })
+
+  it('starts the study timer', async () => {
+    const onStartTimer = vi.fn()
+    render(<CourseCard course={course} onSave={vi.fn()} onStartTimer={onStartTimer} onClearTimer={vi.fn()} />)
+
+    await userEvent.click(screen.getByRole('button', { name: 'Iniciar estudo' }))
+
+    expect(onStartTimer).toHaveBeenCalledWith(7)
+  })
+
+  it('adds the timed hours when the timer stops', async () => {
+    const onSave = vi.fn<(id: number, p: UpdateProgressRequest) => Promise<void>>().mockResolvedValue()
+    const onClearTimer = vi.fn()
+    const startedAt = new Date(Date.now() - 30 * 60_000).toISOString()
+    render(
+      <CourseCard
+        course={{ ...course, hoursDone: 1 }}
+        onSave={onSave}
+        onStartTimer={vi.fn()}
+        onClearTimer={onClearTimer}
+        timerStartedAt={startedAt}
+      />,
+    )
+
+    await userEvent.click(screen.getByRole('button', { name: 'Parar e registrar' }))
+
+    expect(onSave).toHaveBeenCalledWith(7, expect.objectContaining({ hoursDone: 1.5 }))
+    expect(onClearTimer).toHaveBeenCalled()
+  })
+
+  it('blocks a second timer while another course is being timed', () => {
+    render(<CourseCard course={course} onSave={vi.fn()} onStartTimer={vi.fn()} onClearTimer={vi.fn()} timerElsewhere />)
+
+    expect(screen.getByRole('button', { name: 'Iniciar estudo' })).toBeDisabled()
+    expect(screen.getByText('Cronômetro rodando em outro curso')).toBeInTheDocument()
+  })
 })

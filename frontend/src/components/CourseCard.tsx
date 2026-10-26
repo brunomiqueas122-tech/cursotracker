@@ -2,7 +2,9 @@ import { useState } from 'react'
 import { formatHours, statusLabels } from '../format'
 import { linkedInCertificationUrl, linkedInShareUrl } from '../linkedin'
 import { courseStatuses, type Course, type CourseDetails, type CourseStatus, type UpdateProgressRequest } from '../types'
+import { elapsedHours } from '../timer'
 import { CourseForm } from './CourseForm'
+import { StudyTimer } from './StudyTimer'
 
 interface Props {
   course: Course
@@ -11,6 +13,11 @@ interface Props {
   onDelete?: (id: number) => Promise<void>
   areas?: string[]
   overdue?: boolean
+  /** Início do cronômetro deste curso, se estiver rodando */
+  timerStartedAt?: string | null
+  timerElsewhere?: boolean
+  onStartTimer?: (id: number) => void
+  onClearTimer?: () => void
 }
 
 function toDraft(course: Course): UpdateProgressRequest {
@@ -24,7 +31,18 @@ function toDraft(course: Course): UpdateProgressRequest {
   }
 }
 
-export function CourseCard({ course, onSave, onEdit, onDelete, areas = [], overdue = false }: Props) {
+export function CourseCard({
+  course,
+  onSave,
+  onEdit,
+  onDelete,
+  areas = [],
+  overdue = false,
+  timerStartedAt = null,
+  timerElsewhere = false,
+  onStartTimer,
+  onClearTimer,
+}: Props) {
   const [draft, setDraft] = useState(() => toDraft(course))
   const [saving, setSaving] = useState(false)
   const [error, setError] = useState<string | null>(null)
@@ -44,17 +62,33 @@ export function CourseCard({ course, onSave, onEdit, onDelete, areas = [], overd
 
   const update = (patch: Partial<UpdateProgressRequest>) => setDraft((d) => ({ ...d, ...patch }))
 
-  async function save(next: UpdateProgressRequest) {
+  async function save(next: UpdateProgressRequest): Promise<boolean> {
     setSaving(true)
     setError(null)
     try {
       await onSave(course.id, next)
+      return true
     } catch (e) {
       setError(e instanceof Error ? e.message : 'Erro ao salvar.')
+      return false
     } finally {
       setSaving(false)
     }
   }
+
+  async function stopTimer() {
+    if (!timerStartedAt) return
+    const hours = elapsedHours(timerStartedAt, new Date())
+    // Cronômetro esquecido ligado: confirma antes de lançar horas demais
+    if (hours > 6 && !window.confirm(`O cronômetro ficou ligado por ${formatHours(hours)}. Registrar esse tempo? (Cancelar descarta)`)) {
+      onClearTimer?.()
+      return
+    }
+    const saved = await save({ ...draft, hoursDone: Math.round((draft.hoursDone + hours) * 100) / 100 })
+    if (saved) onClearTimer?.()
+  }
+
+  const canTime = onStartTimer && (course.status === 'NotStarted' || course.status === 'InProgress' || timerStartedAt)
 
   const complete = () =>
     save({ ...draft, status: 'Completed', hoursDone: Math.max(draft.hoursDone, course.estimatedHours) })
@@ -186,6 +220,16 @@ export function CourseCard({ course, onSave, onEdit, onDelete, areas = [], overd
           />
         </label>
       </div>
+
+      {canTime && (
+        <StudyTimer
+          startedAt={timerStartedAt}
+          busyElsewhere={timerElsewhere}
+          disabled={saving}
+          onStart={() => onStartTimer(course.id)}
+          onStop={stopTimer}
+        />
+      )}
 
       {error && <p className="error" role="alert">{error}</p>}
 
