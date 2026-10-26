@@ -4,6 +4,8 @@ import { createLocalStore } from './localStore'
 import { MemoryStorage } from './test-utils'
 import { Tracker } from './Tracker'
 
+vi.mock('./download', () => ({ downloadFile: vi.fn() }))
+
 const setup = () => render(<Tracker store={createLocalStore({ storage: new MemoryStorage() })} today="2026-10-27" />)
 
 afterEach(() => vi.restoreAllMocks())
@@ -66,5 +68,16 @@ describe('Tracker', () => {
     await userEvent.click(screen.getByRole('button', { name: 'Salvar alterações' }))
 
     expect(await screen.findByRole('link', { name: 'Intermediate Machine Learning' })).toBeInTheDocument()
+  })
+
+  it('reminds to back up once there is progress and hides after downloading', async () => {
+    const store = createLocalStore({ storage: new MemoryStorage() })
+    await store.updateProgress(1, { hoursDone: 1, status: 'InProgress', certificateReceived: false, certificateUrl: null, onLinkedIn: false, notes: null })
+    render(<Tracker store={store} today="2026-10-27" />)
+
+    expect(await screen.findByText('Você ainda não fez nenhum backup do seu progresso.')).toBeInTheDocument()
+    await userEvent.click(within(screen.getByRole('status')).getByRole('button', { name: 'Baixar backup' }))
+
+    expect(screen.queryByText('Você ainda não fez nenhum backup do seu progresso.')).not.toBeInTheDocument()
   })
 })

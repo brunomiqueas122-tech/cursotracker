@@ -93,4 +93,13 @@ describe('createLocalStore', () => {
       'Informe o nome do curso. As horas estimadas devem ser maiores que zero.',
     )
   })
+
+  it('records when the last backup was exported', () => {
+    const store = createLocalStore({ storage: new MemoryStorage(), now: () => new Date('2026-10-28T10:00:00Z') })
+    expect(store.backup!.lastBackupAt()).toBeNull()
+
+    store.backup!.exportJson()
+
+    expect(store.backup!.lastBackupAt()).toBe('2026-10-28T10:00:00.000Z')
+  })
 })

@@ -4,19 +4,14 @@ import type { Backup } from '../store'
 interface Props {
   backup: Backup
   onImported: () => void
+  onExport: () => void
 }
 
-export function BackupPanel({ backup, onImported }: Props) {
+export function BackupPanel({ backup, onImported, onExport }: Props) {
   const [message, setMessage] = useState<{ text: string; error: boolean } | null>(null)
 
   function exportFile() {
-    const blob = new Blob([backup.exportJson()], { type: 'application/json' })
-    const url = URL.createObjectURL(blob)
-    const link = document.createElement('a')
-    link.href = url
-    link.download = `cursotracker-backup-${new Date().toISOString().slice(0, 10)}.json`
-    link.click()
-    URL.revokeObjectURL(url)
+    onExport()
     setMessage({ text: 'Backup salvo nos downloads.', error: false })
   }
 

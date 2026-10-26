@@ -2,8 +2,10 @@ import { api } from './api'
 import type { Course, CourseDetails, DashboardSummary, UpdateProgressRequest } from './types'
 
 export interface Backup {
+  /** Gera o arquivo de backup e registra a data dele */
   exportJson(): string
   importJson(json: string): void
+  lastBackupAt(): string | null
 }
 
 export interface CourseStore {

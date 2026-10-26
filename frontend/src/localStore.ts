@@ -6,6 +6,7 @@ import type { CourseStore } from './store'
 import { courseStatuses, type Course, type CourseDetails } from './types'
 
 const KEY = 'cursotracker.v1'
+const LAST_BACKUP_KEY = 'cursotracker.lastBackup'
 
 interface SavedData {
   version: 1
@@ -124,8 +125,23 @@ export function createLocalStore({
         save(renumber(courses.filter((c) => c.id !== id)))
       }),
     backup: {
-      exportJson: () => JSON.stringify({ version: 1, courses: load() } satisfies SavedData, null, 2),
+      exportJson: () => {
+        const json = JSON.stringify({ version: 1, courses: load() } satisfies SavedData, null, 2)
+        try {
+          storage.setItem(LAST_BACKUP_KEY, now().toISOString())
+        } catch {
+          // Sem espaço para a data: o lembrete só volta a aparecer, o backup em si não é afetado
+        }
+        return json
+      },
       importJson: (json) => save(parse(json)),
+      lastBackupAt: () => {
+        try {
+          return storage.getItem(LAST_BACKUP_KEY)
+        } catch {
+          return null
+        }
+      },
     },
   }
 }

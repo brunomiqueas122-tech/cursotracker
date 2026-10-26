@@ -6,6 +6,8 @@ import { CourseCard } from './components/CourseCard'
 import { CourseForm } from './components/CourseForm'
 import { DashboardPanel } from './components/DashboardPanel'
 import { agenda, isOverdue, toIsoDate } from './domain/agenda'
+import { backupReminder } from './domain/backupReminder'
+import { downloadFile } from './download'
 import { formatDate, groupByDay, statusLabels } from './format'
 import type { CourseStore } from './store'
 import {
@@ -35,6 +37,7 @@ export function Tracker({ store, onUnauthorized, onLogout, today: fixedToday }: 
   const [status, setStatus] = useState<CourseStatus | ''>('')
   const [area, setArea] = useState('')
   const [adding, setAdding] = useState(false)
+  const [lastBackup, setLastBackup] = useState(() => store.backup?.lastBackupAt() ?? null)
 
   const fail = useCallback(
     (e: unknown) => {
@@ -106,6 +109,13 @@ export function Tracker({ store, onUnauthorized, onLogout, today: fixedToday }: 
   const moveToToday = (c: Course) =>
     editCourse(c.id, { date: today, platform: c.platform, name: c.name, area: c.area, url: c.url, estimatedHours: c.estimatedHours })
 
+  function exportBackup() {
+    if (!store.backup) return
+    downloadFile(`cursotracker-backup-${today}.json`, store.backup.exportJson(), 'application/json')
+    setLastBackup(store.backup.lastBackupAt())
+  }
+  const reminder = store.backup ? backupReminder(courses, lastBackup, today) : null
+
   const areas = useMemo(() => [...new Set(courses.map((c) => c.area))].sort(), [courses])
   const visible = courses.filter((c) => (!status || c.status === status) && (!area || c.area === area))
 
@@ -122,6 +132,18 @@ export function Tracker({ store, onUnauthorized, onLogout, today: fixedToday }: 
       </header>
 
       {error && <p className="error" role="alert">{error}</p>}
+      {reminder && (
+        <div className="reminder" role="status">
+          <span>
+            {reminder.kind === 'never'
+              ? 'Você ainda não fez nenhum backup do seu progresso.'
+              : `Seu último backup foi há ${reminder.days} dias.`}
+          </span>
+          <button type="button" onClick={exportBackup}>
+            Baixar backup
+          </button>
+        </div>
+      )}
       {summary && <DashboardPanel summary={summary} />}
       <AgendaPanel {...agenda(courses, today)} onMoveToToday={moveToToday} />
 
@@ -188,7 +210,7 @@ export function Tracker({ store, onUnauthorized, onLogout, today: fixedToday }: 
 
       {!error && summary && visible.length === 0 && <p className="empty">Nenhum curso com esses filtros.</p>}
 
-      {store.backup && <BackupPanel backup={store.backup} onImported={() => load().catch(fail)} />}
+      {store.backup && <BackupPanel backup={store.backup} onImported={() => load().catch(fail)} onExport={exportBackup} />}
     </main>
   )
 }
