@@ -26,6 +26,16 @@ npm install
 npm run dev
 ```
 
+### Banco (modo servidor)
+
+As migrations são aplicadas sozinhas ao iniciar a API. Para criar uma nova depois de mudar o modelo:
+
+```bash
+dotnet tool restore
+cd backend/CursoTracker.Api
+Auth__Password=dev dotnet ef migrations add NomeDaMudanca --output-dir Data/Migrations
+```
+
 ## Testes
 
 ```bash

@@ -14,8 +14,7 @@ public static class SeedData
 
     public static async Task EnsureSeededAsync(AppDbContext db, string seedFile, TimeProvider time, CancellationToken ct)
     {
-        // Schema criado direto do modelo: app pessoal, sem histórico de migrações a preservar ainda
-        await db.Database.EnsureCreatedAsync(ct);
+        await db.Database.MigrateAsync(ct);
         if (await db.Courses.AnyAsync(ct))
             return;
 
