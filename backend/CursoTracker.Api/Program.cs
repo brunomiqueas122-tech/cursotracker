@@ -68,8 +68,15 @@ builder.Services.AddRateLimiter(options =>
 
 builder.Services.Configure<AiOptions>(builder.Configuration.GetSection("Ai"));
 // Sem chave configurada o app sobe normalmente; só a busca com IA responde erro
-builder.Services.AddSingleton(_ => new AnthropicClient { ApiKey = builder.Configuration["ANTHROPIC_API_KEY"] ?? "" });
-builder.Services.AddSingleton<ICourseFinder, ClaudeCourseFinder>();
+if (string.Equals(builder.Configuration["Ai:Provider"], "Claude", StringComparison.OrdinalIgnoreCase))
+{
+    builder.Services.AddSingleton(_ => new AnthropicClient { ApiKey = builder.Configuration["ANTHROPIC_API_KEY"] ?? "" });
+    builder.Services.AddSingleton<ICourseFinder, ClaudeCourseFinder>();
+}
+else
+{
+    builder.Services.AddHttpClient<ICourseFinder, GeminiCourseFinder>(client => client.Timeout = TimeSpan.FromMinutes(2));
+}
 
 var app = builder.Build();
 

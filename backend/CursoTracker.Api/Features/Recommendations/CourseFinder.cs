@@ -5,8 +5,11 @@ namespace CursoTracker.Api.Features.Recommendations;
 
 public sealed class AiOptions
 {
-    public string Model { get; set; } = "claude-opus-5-5";
-    public int DailySearchLimit { get; set; } = 5;
+    /// <summary>"Gemini" (cota grátis do Google) ou "Claude" (Anthropic, pago).</summary>
+    public string Provider { get; set; } = "Gemini";
+    public string GeminiModel { get; set; } = "gemini-2.5-flash";
+    public string ClaudeModel { get; set; } = "claude-opus-5-5";
+    public int DailySearchLimit { get; set; } = 1;
     public int MaxWebSearches { get; set; } = 6;
 }
 
@@ -22,7 +25,7 @@ public sealed record CourseSuggestion(
 
 public sealed record CourseSearchResult(IReadOnlyList<CourseSuggestion> Courses, string? Note);
 
-/// <summary>Busca cursos gratuitos com certificado para um perfil. Implementação real: Claude + web search.</summary>
+/// <summary>Busca cursos gratuitos com certificado para um perfil (Gemini ou Claude, ambos com busca na web).</summary>
 public interface ICourseFinder
 {
     Task<CourseSearchResult> FindAsync(UserProfile profile, string? refinement, IReadOnlyCollection<string> knownUrls, CancellationToken ct);

@@ -1,8 +1,11 @@
 using CursoTracker.Api.Domain;
+using System.Text.Json;
 using CursoTracker.Api.Features.Auth;
+using CursoTracker.Api.Features.Recommendations;
 using Microsoft.AspNetCore.DataProtection.EntityFrameworkCore;
 using Microsoft.AspNetCore.Identity.EntityFrameworkCore;
 using Microsoft.EntityFrameworkCore;
+using Microsoft.EntityFrameworkCore.ChangeTracking;
 
 namespace CursoTracker.Api.Data;
 
@@ -11,6 +14,7 @@ public sealed class AppDbContext(DbContextOptions<AppDbContext> options)
 {
     public DbSet<Course> Courses => Set<Course>();
     public DbSet<UserProfile> Profiles => Set<UserProfile>();
+    public DbSet<RecommendationRun> RecommendationRuns => Set<RecommendationRun>();
 
     // Chaves do cookie de login: no banco, para sobreviver aos reinícios do servidor
     public DbSet<DataProtectionKey> DataProtectionKeys => Set<DataProtectionKey>();
@@ -40,6 +44,24 @@ public sealed class AppDbContext(DbContextOptions<AppDbContext> options)
             profile.Property(p => p.Level).HasConversion<string>().HasMaxLength(20);
             profile.Property(p => p.Language).HasConversion<string>().HasMaxLength(20);
             profile.HasOne<AppUser>().WithOne().HasForeignKey<UserProfile>(p => p.UserId).OnDelete(DeleteBehavior.Cascade);
+        });
+
+        modelBuilder.Entity<RecommendationRun>(run =>
+        {
+            run.Property(r => r.Refinement).HasMaxLength(300);
+            run.Property(r => r.Note).HasMaxLength(2000);
+            // Sugestões ficam juntas em uma coluna jsonb: são lidas e gravadas sempre inteiras
+            run.Property(r => r.Courses)
+                .HasColumnType("jsonb")
+                .HasConversion(
+                    v => JsonSerializer.Serialize(v, JsonSerializerOptions.Web),
+                    v => JsonSerializer.Deserialize<List<CourseSuggestion>>(v, JsonSerializerOptions.Web) ?? new(),
+                    new ValueComparer<List<CourseSuggestion>>(
+                        (a, b) => a!.SequenceEqual(b!),
+                        v => v.Aggregate(0, (h, s) => HashCode.Combine(h, s.GetHashCode())),
+                        v => v.ToList()));
+            run.HasIndex(r => new { r.UserId, r.CreatedAt });
+            run.HasOne<AppUser>().WithMany().HasForeignKey(r => r.UserId).OnDelete(DeleteBehavior.Cascade);
         });
     }
 }

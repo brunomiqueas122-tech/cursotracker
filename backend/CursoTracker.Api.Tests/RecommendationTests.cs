@@ -113,4 +113,38 @@ public class RecommendationTests(PostgresFixture db)
         Assert.Contains("A busca com IA está indisponível agora.", await response.Content.ReadAsStringAsync());
         Assert.Equal(5, (await client.GetFromJsonAsync<ProfileResponse>("/api/profile", TestApi.Json))!.RemainingSearchesToday);
     }
+
+    [Fact]
+    public async Task Latest_search_is_saved_and_hides_courses_added_later()
+    {
+        await using var factory = new ApiFactory(db.NewDatabase());
+        var client = await factory.CreateUserAsync();
+        await client.SaveProfileAsync();
+        Assert.Equal(HttpStatusCode.NotFound, (await client.GetAsync("/api/recommendations/latest")).StatusCode);
+        factory.Finder.Result = new CourseSearchResult(
+            [Suggestion("Kubernetes", "https://k8s.example.com"), Suggestion("Docker", "https://docker.example.com")], "Boa sorte!");
+        await client.PostAsJsonAsync("/api/recommendations", new { refinement = "curtos" });
+
+        await client.AddCourseAsync(TestApi.Course("2026-11-02", "Kubernetes", url: "https://k8s.example.com"));
+        var latest = await client.GetFromJsonAsync<RecommendationResponse>("/api/recommendations/latest", TestApi.Json);
+
+        Assert.Equal(["Docker"], latest!.Courses.Select(c => c.Name));
+        Assert.Equal("Boa sorte!", latest.Note);
+        Assert.Equal(4, latest.RemainingSearchesToday);
+        Assert.Single(factory.Finder.Calls);
+    }
+
+    [Fact]
+    public async Task One_search_per_day_by_default()
+    {
+        await using var factory = new ApiFactory(db.NewDatabase(), dailySearchLimit: 1);
+        var client = await factory.CreateUserAsync();
+        await client.SaveProfileAsync();
+
+        await client.PostAsJsonAsync("/api/recommendations", new { });
+        var second = await client.PostAsJsonAsync("/api/recommendations", new { });
+
+        Assert.Equal(HttpStatusCode.TooManyRequests, second.StatusCode);
+        Assert.Contains("Você já fez a busca de hoje.", await second.Content.ReadAsStringAsync());
+    }
 }

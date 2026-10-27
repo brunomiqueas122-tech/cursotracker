@@ -1,4 +1,3 @@
-using System.Text;
 using System.Text.Json;
 using Anthropic;
 using Anthropic.Exceptions;
@@ -21,27 +20,17 @@ public sealed class ClaudeCourseFinder(
     const string ReportTool = "report_courses";
     const int MaxContinuations = 3;
 
-    const string SystemPrompt = """
-        Você ajuda brasileiros a encontrar cursos online gratuitos que dão certificado gratuito.
-
-        Use a busca na web para encontrar opções atuais. Só inclua um curso depois de confirmar, em uma página
-        oficial do provedor, que o curso e o certificado são gratuitos. Descarte cursos em que só o conteúdo é
-        grátis e o certificado é pago (como o modo "auditar" de algumas plataformas), cursos com teste grátis
-        que depois cobram, e páginas de revenda ou agregadores duvidosos.
-
-        Escolha os cursos pelo perfil da pessoa: o que ela procura, objetivo, nível, idioma preferido e tempo
-        disponível. Prefira provedores reconhecidos pelo mercado. Não sugira cursos cujo link já está no plano dela.
+    const string SystemPrompt = CourseSearchPrompt.Rules + """
 
         Ao terminar, chame a ferramenta report_courses uma única vez com 4 a 8 cursos, do mais para o menos
-        indicado. Escreva os textos em português do Brasil. Se não encontrar opções confiáveis, chame
-        report_courses com a lista vazia e explique o motivo em note.
+        indicado. Se não encontrar opções confiáveis, chame report_courses com a lista vazia e explique o motivo em note.
         """;
 
     public async Task<CourseSearchResult> FindAsync(
         UserProfile profile, string? refinement, IReadOnlyCollection<string> knownUrls, CancellationToken ct)
     {
         var opts = options.Value;
-        List<BetaMessageParam> messages = [new BetaUserMessageParam { Content = DescribeRequest(profile, refinement, knownUrls) }];
+        List<BetaMessageParam> messages = [new BetaUserMessageParam { Content = CourseSearchPrompt.DescribeRequest(profile, refinement, knownUrls, time.GetUtcNow()) }];
 
         for (var turn = 0; turn <= MaxContinuations; turn++)
         {
@@ -50,7 +39,7 @@ public sealed class ClaudeCourseFinder(
             {
                 response = await client.Beta.Messages.Create(new MessageCreateParams
                 {
-                    Model = opts.Model,
+                    Model = opts.ClaudeModel,
                     MaxTokens = 16000,
                     // Se o modelo recusar por engano, a própria API tenta de novo com um modelo de reserva
                     Betas = ["server-side-fallback-2026-07-01"],
@@ -95,48 +84,6 @@ public sealed class ClaudeCourseFinder(
 
         throw new CourseSearchException("A busca demorou demais. Tente um pedido mais específico.");
     }
-
-    string DescribeRequest(UserProfile profile, string? refinement, IReadOnlyCollection<string> knownUrls)
-    {
-        var sb = new StringBuilder();
-        sb.AppendLine($"Data de hoje: {time.GetUtcNow():yyyy-MM-dd}");
-        sb.AppendLine($"O que procuro: {profile.LookingFor}");
-        sb.AppendLine($"Objetivo: {Describe(profile.Goal)}");
-        sb.AppendLine($"Nível: {Describe(profile.Level)}");
-        sb.AppendLine($"Idioma dos cursos: {Describe(profile.Language)}");
-        sb.AppendLine($"Tempo disponível: {profile.HoursPerWeek} horas por semana");
-        if (!string.IsNullOrWhiteSpace(refinement))
-            sb.AppendLine($"Ajuste pedido nesta busca: {refinement}");
-        if (knownUrls.Count > 0)
-        {
-            sb.AppendLine("Cursos que já estão no meu plano (não repita):");
-            foreach (var url in knownUrls.Take(100))
-                sb.AppendLine($"- {url}");
-        }
-        return sb.ToString();
-    }
-
-    static string Describe(LearningGoal goal) => goal switch
-    {
-        LearningGoal.GetJob => "conseguir um emprego",
-        LearningGoal.GrowInCurrentJob => "crescer no trabalho atual",
-        LearningGoal.ChangeCareer => "mudar de área",
-        _ => "aprender por interesse pessoal",
-    };
-
-    static string Describe(SkillLevel level) => level switch
-    {
-        SkillLevel.Beginner => "iniciante",
-        SkillLevel.Intermediate => "intermediário",
-        _ => "avançado",
-    };
-
-    static string Describe(CourseLanguage language) => language switch
-    {
-        CourseLanguage.Portuguese => "português",
-        CourseLanguage.English => "inglês",
-        _ => "português ou inglês",
-    };
 
     static readonly BetaTool ReportCoursesTool = new()
     {
