@@ -56,7 +56,7 @@ describe('App', () => {
         hasProfile = true
         return json(profile)
       }
-      if (url === '/api/recommendations') return json({ courses: [], note: 'Nada por hoje.', remainingSearchesToday: 4 })
+      if (url === '/api/recommendations') return json({ courses: [], note: 'Nada por hoje.', remainingSearchesToday: 0, searchedAt: '2026-10-26T13:05:00Z' })
       return json([])
     })
     render(<App />)

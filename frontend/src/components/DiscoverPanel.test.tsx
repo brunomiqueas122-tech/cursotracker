@@ -26,13 +26,15 @@ const suggestion = (name: string): CourseSuggestion => ({
 const found: Recommendations = {
   courses: [suggestion('Introduction to Kubernetes'), suggestion('Docker Essentials')],
   note: 'Poucas opções em português.',
-  remainingSearchesToday: 4,
+  remainingSearchesToday: 0,
+  searchedAt: '2026-10-26T13:05:00Z',
 }
 
 function setup(p: Partial<Parameters<typeof DiscoverPanel>[0]> = {}) {
   const props = {
     profile,
     search: vi.fn<(r: string | null) => Promise<Recommendations>>().mockResolvedValue(found),
+    latest: vi.fn<() => Promise<Recommendations | null>>().mockResolvedValue(null),
     onAdd: vi.fn<(s: CourseSuggestion[]) => Promise<void>>().mockResolvedValue(),
     onEditProfile: vi.fn(),
     onBack: vi.fn(),
@@ -50,7 +52,7 @@ describe('DiscoverPanel', () => {
     expect(search).toHaveBeenCalledOnce()
     expect(search).toHaveBeenCalledWith(null)
     expect(screen.getByText('Poucas opções em português.')).toBeInTheDocument()
-    expect(screen.getByText('4 busca(s) restante(s) hoje.')).toBeInTheDocument()
+    expect(screen.getByText('Você já fez a busca de hoje. A próxima fica disponível amanhã.')).toBeInTheDocument()
   })
 
   it('sends the refinement typed by the user', async () => {
@@ -88,6 +90,16 @@ describe('DiscoverPanel', () => {
     setup({ profile: { ...profile, remainingSearchesToday: 0 } })
 
     expect(screen.getByRole('button', { name: 'Buscar cursos' })).toBeDisabled()
-    expect(screen.getByText('Você já usou todas as buscas de hoje. Volte amanhã!')).toBeInTheDocument()
+    expect(screen.getByText('Você já fez a busca de hoje. A próxima fica disponível amanhã.')).toBeInTheDocument()
+  })
+
+  it('shows the saved search when opened, without searching again', async () => {
+    const { search, latest } = setup({ latest: vi.fn().mockResolvedValue(found) })
+
+    expect(await screen.findByRole('link', { name: 'Introduction to Kubernetes' })).toBeInTheDocument()
+    expect(screen.getByText((text) => text.startsWith('Resultado da busca de 26/10'))).toBeInTheDocument()
+    expect(latest).toHaveBeenCalledOnce()
+    expect(search).not.toHaveBeenCalled()
+    expect(screen.getByRole('button', { name: 'Buscar de novo' })).toBeDisabled()
   })
 })

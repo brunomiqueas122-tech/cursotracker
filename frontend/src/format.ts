@@ -23,6 +23,11 @@ export function formatDate(isoDate: string): string {
   })
 }
 
+export function formatDateTime(iso: string): string {
+  const d = new Date(iso)
+  return `${d.toLocaleDateString('pt-BR', { day: '2-digit', month: '2-digit' })} às ${d.toLocaleTimeString('pt-BR', { hour: '2-digit', minute: '2-digit' })}`
+}
+
 export interface DayGroup {
   day: number
   date: string

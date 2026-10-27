@@ -13,7 +13,7 @@ services:
         value: "8080"
       - key: ConnectionStrings__Default
         sync: false # URL de conexão do Neon (postgresql://...)
-      - key: ANTHROPIC_API_KEY
-        sync: false # chave criada em console.anthropic.com
+      - key: Gemini__ApiKey
+        sync: false # chave grátis criada em aistudio.google.com
       - key: Auth__InviteCode
         sync: false # código que você passa para quem pode criar conta

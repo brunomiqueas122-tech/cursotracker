@@ -103,4 +103,13 @@ export const api = {
   },
   saveProfile: (answers: ProfileAnswers) => json<Profile>('/api/profile', put(answers)),
   recommendations: (refinement: string | null) => json<Recommendations>('/api/recommendations', post({ refinement })),
+  /** Última busca salva (não gasta a busca do dia) */
+  async latestRecommendations(): Promise<Recommendations | null> {
+    try {
+      return await json<Recommendations>('/api/recommendations/latest')
+    } catch (e) {
+      if (e instanceof NotFoundError) return null
+      throw e
+    }
+  },
 }

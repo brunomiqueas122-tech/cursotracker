@@ -1,10 +1,12 @@
 import { useCallback, useEffect, useRef, useState, type FormEvent } from 'react'
-import { formatHours, goalLabels, levelLabels } from '../format'
+import { formatDateTime, formatHours, goalLabels, levelLabels } from '../format'
 import type { CourseSuggestion, Profile, Recommendations } from '../types'
 
 interface Props {
   profile: Profile
   search: (refinement: string | null) => Promise<Recommendations>
+  /** Última busca salva, mostrada ao abrir sem gastar a busca do dia */
+  latest: () => Promise<Recommendations | null>
   onAdd: (suggestions: CourseSuggestion[]) => Promise<void>
   onEditProfile: () => void
   onBack: () => void
@@ -12,44 +14,55 @@ interface Props {
   searchOnOpen?: boolean
 }
 
-export function DiscoverPanel({ profile, search, onAdd, onEditProfile, onBack, searchOnOpen = false }: Props) {
+export function DiscoverPanel({ profile, search, latest, onAdd, onEditProfile, onBack, searchOnOpen = false }: Props) {
   const [results, setResults] = useState<Recommendations | null>(null)
   const [remaining, setRemaining] = useState(profile.remainingSearchesToday)
   const [refinement, setRefinement] = useState('')
-  const [loading, setLoading] = useState(false)
+  const [loading, setLoading] = useState(searchOnOpen)
   const [error, setError] = useState<string | null>(null)
   const [added, setAdded] = useState<Set<string>>(new Set())
   const [adding, setAdding] = useState(false)
 
-  const run = useCallback(
-    async (text: string | null) => {
-      setLoading(true)
-      setError(null)
-      try {
-        const found = await search(text)
-        setResults(found)
-        setRemaining(found.remainingSearchesToday)
-        setAdded(new Set())
-      } catch (e) {
-        setError(e instanceof Error ? e.message : 'A busca falhou.')
-      } finally {
-        setLoading(false)
-      }
-    },
+  const fetchResults = useCallback(
+    (text: string | null) =>
+      search(text)
+        .then((found) => {
+          setResults(found)
+          setRemaining(found.remainingSearchesToday)
+          setAdded(new Set())
+        })
+        .catch((e: unknown) => setError(e instanceof Error ? e.message : 'A busca falhou.'))
+        .finally(() => setLoading(false)),
     [search],
   )
 
-  // StrictMode roda efeitos duas vezes em dev; a ref garante uma única busca (que custa dinheiro)
+  function run(text: string | null) {
+    setLoading(true)
+    setError(null)
+    void fetchResults(text)
+  }
+
+  // StrictMode roda efeitos duas vezes em dev; a ref garante uma única busca (é a única do dia)
   const started = useRef(false)
   useEffect(() => {
-    if (!searchOnOpen || started.current) return
+    if (started.current) return
     started.current = true
-    void run(null)
-  }, [searchOnOpen, run])
+    if (searchOnOpen) {
+      void fetchResults(null) // loading já começa true
+      return
+    }
+    latest()
+      .then((saved) => {
+        if (!saved) return
+        setResults(saved)
+        setRemaining(saved.remainingSearchesToday)
+      })
+      .catch(() => undefined) // sem a última busca a tela continua funcionando
+  }, [searchOnOpen, fetchResults, latest])
 
   function submit(e: FormEvent) {
     e.preventDefault()
-    void run(refinement.trim() || null)
+    run(refinement.trim() || null)
   }
 
   async function add(list: CourseSuggestion[]) {
@@ -103,7 +116,9 @@ export function DiscoverPanel({ profile, search, onAdd, onEditProfile, onBack, s
           {loading ? 'Pesquisando…' : results ? 'Buscar de novo' : 'Buscar cursos'}
         </button>
         <small className="hint">
-          {remaining === 0 ? 'Você já usou todas as buscas de hoje. Volte amanhã!' : `${remaining} busca(s) restante(s) hoje.`}
+          {remaining === 0
+            ? 'Você já fez a busca de hoje. A próxima fica disponível amanhã.'
+            : `${remaining} busca(s) disponível(is) hoje.`}
         </small>
       </form>
 
@@ -116,6 +131,7 @@ export function DiscoverPanel({ profile, search, onAdd, onEditProfile, onBack, s
 
       {results && !loading && (
         <section className="suggestions" aria-label="Sugestões">
+          <p className="hint">Resultado da busca de {formatDateTime(results.searchedAt)}</p>
           {results.note && <p className="note">{results.note}</p>}
           {results.courses.length === 0 && <p className="empty">Nenhum curso desta vez. Tente ajustar a busca.</p>}
           {pending.length > 1 && (

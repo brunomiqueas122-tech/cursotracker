@@ -96,6 +96,7 @@ export default function App() {
       <DiscoverPanel
         profile={profile}
         search={api.recommendations}
+        latest={api.latestRecommendations}
         onAdd={addSuggestions}
         onEditProfile={() => editProfile('discover')}
         onBack={() => setView('tracker')}

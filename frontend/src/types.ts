@@ -87,4 +87,5 @@ export interface Recommendations {
   courses: CourseSuggestion[]
   note: string | null
   remainingSearchesToday: number
+  searchedAt: string
 }

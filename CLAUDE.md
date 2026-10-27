@@ -5,7 +5,8 @@ App para acompanhar cursos gratuitos com certificado. Cada pessoa tem conta; no 
 ## Stack
 - Backend: ASP.NET Core (.NET LTS atual), Minimal APIs, EF Core + PostgreSQL (Neon em produção, Docker local)
 - Contas: ASP.NET Core Identity com cookie; cadastro exige código de convite (`Auth:InviteCode`)
-- IA: SDK oficial da Anthropic para C#, `claude-opus-5-5` + web search, atrás de `ICourseFinder`
+- IA: atrás de `ICourseFinder`. Padrão: Gemini (cota grátis) com `google_search` via REST; alternativa: Claude (SDK oficial da Anthropic, `claude-opus-5-5` + web search) com `Ai:Provider=Claude`
+- Busca com IA: 1 por usuário por dia (configurável); cada resultado é salvo em `RecommendationRuns` e reaproveitado
 - Frontend: React + TypeScript + Vite, servido pela própria API (`wwwroot`)
 - Testes: xUnit + Testcontainers/PostgreSQL (backend), Vitest (frontend)
 - Deploy: Render (Docker, `render.yaml`) + Neon
