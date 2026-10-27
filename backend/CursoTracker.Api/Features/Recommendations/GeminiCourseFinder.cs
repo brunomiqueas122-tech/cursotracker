@@ -71,10 +71,23 @@ public sealed class GeminiCourseFinder(
             if (!response.IsSuccessStatusCode)
             {
                 logger.LogWarning("Gemini respondeu {Status}: {Body}", (int)response.StatusCode, payload);
-                throw new CourseSearchException("A busca com IA está indisponível agora. Tente de novo em alguns minutos.");
+                throw new CourseSearchException(DescribeError(response.StatusCode, payload));
             }
             return Parse(payload);
         }
+    }
+
+    // Erros de configuração do servidor ganham mensagem própria para dar para corrigir sem abrir os logs
+    string DescribeError(HttpStatusCode status, string payload)
+    {
+        if (payload.Contains("API_KEY_INVALID", StringComparison.Ordinal) || payload.Contains("API key not valid", StringComparison.Ordinal))
+            return "A chave do Gemini configurada no servidor é inválida (Gemini__ApiKey).";
+        return status switch
+        {
+            HttpStatusCode.Forbidden => "A chave do Gemini não tem permissão para usar a API (Gemini__ApiKey).",
+            HttpStatusCode.NotFound => $"O modelo \"{options.Value.GeminiModel}\" não está disponível no Gemini (Ai__GeminiModel).",
+            _ => $"A busca com IA está indisponível agora (erro {(int)status}). Tente de novo em alguns minutos.",
+        };
     }
 
     CourseSearchResult Parse(string payload)

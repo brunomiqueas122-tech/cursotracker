@@ -96,14 +96,18 @@ public class GeminiCourseFinderTests
         Assert.Contains("cota gratuita", e.Message);
     }
 
-    [Fact]
-    public async Task Other_api_errors_become_a_friendly_error()
+    [Theory]
+    [InlineData(HttpStatusCode.BadRequest, """{"error":{"code":400,"message":"API key not valid","details":[{"reason":"API_KEY_INVALID"}]}}""", "chave do Gemini configurada no servidor é inválida")]
+    [InlineData(HttpStatusCode.Forbidden, """{"error":{"code":403,"status":"PERMISSION_DENIED"}}""", "não tem permissão")]
+    [InlineData(HttpStatusCode.NotFound, """{"error":{"code":404,"status":"NOT_FOUND"}}""", "não está disponível no Gemini")]
+    [InlineData(HttpStatusCode.ServiceUnavailable, """{"error":{"code":503,"status":"UNAVAILABLE"}}""", "indisponível agora (erro 503)")]
+    public async Task Api_errors_say_what_went_wrong(HttpStatusCode status, string body, string expected)
     {
-        var (finder, _) = Create(HttpStatusCode.BadRequest, """{"error":{"code":400,"message":"API key not valid"}}""");
+        var (finder, _) = Create(status, body);
 
         var e = await Assert.ThrowsAsync<CourseSearchException>(() => finder.FindAsync(Profile, null, [], CancellationToken.None));
 
-        Assert.Contains("indisponível", e.Message);
+        Assert.Contains(expected, e.Message);
     }
 
     [Fact]
