@@ -44,7 +44,7 @@ public class GeminiCourseFinderTests
         await finder.FindAsync(Profile, "só gratuitos de verdade", ["https://ja-tenho.example.com"], CancellationToken.None);
 
         var (body, request) = Assert.Single(api.Requests);
-        Assert.Equal($"{GeminiCourseFinder.Endpoint}gemini-2.5-flash:generateContent", request.RequestUri!.ToString());
+        Assert.Equal($"{GeminiCourseFinder.Endpoint}gemini-flash-latest:generateContent", request.RequestUri!.ToString());
         Assert.Equal("gemini-key", Assert.Single(request.Headers.GetValues("x-goog-api-key")));
         Assert.NotNull(body["tools"]![0]!["google_search"]);
         Assert.Contains("certificado é pago", body["systemInstruction"]!["parts"]![0]!["text"]!.GetValue<string>());

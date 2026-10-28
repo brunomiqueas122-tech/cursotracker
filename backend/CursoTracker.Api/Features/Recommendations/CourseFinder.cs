@@ -7,7 +7,7 @@ public sealed class AiOptions
 {
     /// <summary>"Gemini" (cota grátis do Google) ou "Claude" (Anthropic, pago).</summary>
     public string Provider { get; set; } = "Gemini";
-    public string GeminiModel { get; set; } = "gemini-2.5-flash";
+    public string GeminiModel { get; set; } = "gemini-flash-latest";
     public string ClaudeModel { get; set; } = "claude-opus-5-5";
     public int DailySearchLimit { get; set; } = 1;
     public int MaxWebSearches { get; set; } = 6;

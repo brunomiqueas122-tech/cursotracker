@@ -63,7 +63,7 @@ Cada push na `main` publica de novo. No plano grátis o servidor "dorme" após 1
 | `Auth__InviteCode` | Código exigido no cadastro | obrigatória |
 | `Gemini__ApiKey` | Busca de cursos com IA (Gemini) | — |
 | `Ai__Provider` | `Gemini` (grátis) ou `Claude` (pago, usa `ANTHROPIC_API_KEY`) | `Gemini` |
-| `Ai__GeminiModel` | Modelo do Gemini | `gemini-2.5-flash` |
+| `Ai__GeminiModel` | Modelo do Gemini | `gemini-flash-latest` |
 | `Ai__ClaudeModel` | Modelo do Claude | `claude-opus-5-5` |
 | `Ai__DailySearchLimit` | Buscas com IA por usuário por dia | `1` |
 | `Ai__MaxWebSearches` | Pesquisas na web por busca (Claude) | `6` |
