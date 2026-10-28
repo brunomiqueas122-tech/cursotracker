@@ -27,9 +27,12 @@ public class GeminiCourseFinderTests
         usageMetadata = new { totalTokenCount = 1500 },
     });
 
-    static (GeminiCourseFinder Finder, FakeAnthropicHandler Api) Create(HttpStatusCode status, string body, string? apiKey = "gemini-key")
+    static (GeminiCourseFinder Finder, FakeAnthropicHandler Api) Create(HttpStatusCode status, string body, string? apiKey = "gemini-key") =>
+        Create(apiKey, (status, body));
+
+    static (GeminiCourseFinder Finder, FakeAnthropicHandler Api) Create(string? apiKey, params (HttpStatusCode, string)[] responses)
     {
-        var api = new FakeAnthropicHandler((status, body));
+        var api = new FakeAnthropicHandler(responses);
         var config = new ConfigurationBuilder().AddInMemoryCollection(new Dictionary<string, string?> { ["Gemini:ApiKey"] = apiKey }).Build();
         var finder = new GeminiCourseFinder(new HttpClient(api), Options.Create(new AiOptions()), config, TimeProvider.System,
             NullLogger<GeminiCourseFinder>.Instance);
@@ -99,7 +102,6 @@ public class GeminiCourseFinderTests
     [Theory]
     [InlineData(HttpStatusCode.BadRequest, """{"error":{"code":400,"message":"API key not valid","details":[{"reason":"API_KEY_INVALID"}]}}""", "chave do Gemini configurada no servidor é inválida")]
     [InlineData(HttpStatusCode.Forbidden, """{"error":{"code":403,"status":"PERMISSION_DENIED"}}""", "não tem permissão")]
-    [InlineData(HttpStatusCode.NotFound, """{"error":{"code":404,"status":"NOT_FOUND"}}""", "não está disponível no Gemini")]
     [InlineData(HttpStatusCode.ServiceUnavailable, """{"error":{"code":503,"status":"UNAVAILABLE"}}""", "indisponível agora (erro 503)")]
     public async Task Api_errors_say_what_went_wrong(HttpStatusCode status, string body, string expected)
     {
@@ -108,6 +110,31 @@ public class GeminiCourseFinderTests
         var e = await Assert.ThrowsAsync<CourseSearchException>(() => finder.FindAsync(Profile, null, [], CancellationToken.None));
 
         Assert.Contains(expected, e.Message);
+    }
+
+    const string NotFound = """{"error":{"code":404,"status":"NOT_FOUND"}}""";
+
+    [Fact]
+    public async Task Unavailable_model_falls_back_to_the_next_one()
+    {
+        var (finder, api) = Create("gemini-key", (HttpStatusCode.NotFound, NotFound), (HttpStatusCode.OK, Answer(CoursesJson)));
+
+        var result = await finder.FindAsync(Profile, null, [], CancellationToken.None);
+
+        Assert.Single(result.Courses);
+        Assert.Equal($"{GeminiCourseFinder.Endpoint}{GeminiCourseFinder.FallbackModels[1]}:generateContent", api.Requests[1].Request.RequestUri!.ToString());
+    }
+
+    [Fact]
+    public async Task No_available_model_is_reported()
+    {
+        var notFound = GeminiCourseFinder.FallbackModels.Select(_ => (HttpStatusCode.NotFound, NotFound)).ToArray();
+        var (finder, api) = Create("gemini-key", notFound);
+
+        var e = await Assert.ThrowsAsync<CourseSearchException>(() => finder.FindAsync(Profile, null, [], CancellationToken.None));
+
+        Assert.Contains("Nenhum modelo do Gemini", e.Message);
+        Assert.Equal(GeminiCourseFinder.FallbackModels.Length, api.Requests.Count);
     }
 
     [Fact]

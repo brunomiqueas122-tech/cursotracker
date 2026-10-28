@@ -47,45 +47,52 @@ public sealed class GeminiCourseFinder(
             tools = new[] { new { google_search = new { } } },
         };
 
-        using var request = new HttpRequestMessage(HttpMethod.Post, $"{Endpoint}{options.Value.GeminiModel}:generateContent")
+        // O Google restringe ou aposenta modelos sem aviso; um 404 passa para o próximo da lista
+        var models = new[] { options.Value.GeminiModel }.Concat(FallbackModels).Distinct().ToArray();
+        foreach (var model in models)
         {
-            Content = JsonContent.Create(body),
-        };
-        request.Headers.Add("x-goog-api-key", apiKey);
-
-        HttpResponseMessage response;
-        try
-        {
-            response = await http.SendAsync(request, ct);
-        }
-        catch (HttpRequestException e)
-        {
-            throw new CourseSearchException("A busca com IA está indisponível agora. Tente de novo em alguns minutos.", e);
-        }
-
-        using (response)
-        {
-            var payload = await response.Content.ReadAsStringAsync(ct);
-            if (response.StatusCode == HttpStatusCode.TooManyRequests)
-                throw new CourseSearchException("A cota gratuita da IA acabou por hoje. Tente de novo amanhã.");
-            if (!response.IsSuccessStatusCode)
+            using var request = new HttpRequestMessage(HttpMethod.Post, $"{Endpoint}{model}:generateContent")
             {
-                logger.LogWarning("Gemini respondeu {Status}: {Body}", (int)response.StatusCode, payload);
-                throw new CourseSearchException(DescribeError(response.StatusCode, payload));
+                Content = JsonContent.Create(body),
+            };
+            request.Headers.Add("x-goog-api-key", apiKey);
+
+            HttpResponseMessage response;
+            try
+            {
+                response = await http.SendAsync(request, ct);
             }
-            return Parse(payload);
+            catch (HttpRequestException e)
+            {
+                throw new CourseSearchException("A busca com IA está indisponível agora. Tente de novo em alguns minutos.", e);
+            }
+
+            using (response)
+            {
+                var payload = await response.Content.ReadAsStringAsync(ct);
+                if (response.StatusCode == HttpStatusCode.TooManyRequests)
+                    throw new CourseSearchException("A cota gratuita da IA acabou por hoje. Tente de novo amanhã.");
+                if (response.IsSuccessStatusCode)
+                    return Parse(payload);
+
+                logger.LogWarning("Gemini ({Model}) respondeu {Status}: {Body}", model, (int)response.StatusCode, payload);
+                if (response.StatusCode != HttpStatusCode.NotFound)
+                    throw new CourseSearchException(DescribeError(response.StatusCode, payload));
+            }
         }
+        throw new CourseSearchException($"Nenhum modelo do Gemini está disponível para esta chave ({string.Join(", ", models)}).");
     }
 
+    public static readonly string[] FallbackModels = ["gemini-flash-latest", "gemini-3.5-flash-lite", "gemini-3.1-flash-lite"];
+
     // Erros de configuração do servidor ganham mensagem própria para dar para corrigir sem abrir os logs
-    string DescribeError(HttpStatusCode status, string payload)
+    static string DescribeError(HttpStatusCode status, string payload)
     {
         if (payload.Contains("API_KEY_INVALID", StringComparison.Ordinal) || payload.Contains("API key not valid", StringComparison.Ordinal))
             return "A chave do Gemini configurada no servidor é inválida (Gemini__ApiKey).";
         return status switch
         {
             HttpStatusCode.Forbidden => "A chave do Gemini não tem permissão para usar a API (Gemini__ApiKey).",
-            HttpStatusCode.NotFound => $"O modelo \"{options.Value.GeminiModel}\" não está disponível no Gemini (Ai__GeminiModel).",
             _ => $"A busca com IA está indisponível agora (erro {(int)status}). Tente de novo em alguns minutos.",
         };
     }
