@@ -90,13 +90,27 @@ public class GeminiCourseFinderTests
     }
 
     [Fact]
-    public async Task Free_quota_exhausted_has_its_own_message()
+    public async Task Free_quota_exhausted_on_every_model_has_its_own_message()
     {
-        var (finder, _) = Create(HttpStatusCode.TooManyRequests, """{"error":{"code":429,"status":"RESOURCE_EXHAUSTED"}}""");
+        const string exhausted = """{"error":{"code":429,"status":"RESOURCE_EXHAUSTED"}}""";
+        var (finder, api) = Create("gemini-key", GeminiCourseFinder.FallbackModels.Select(_ => (HttpStatusCode.TooManyRequests, exhausted)).ToArray());
 
         var e = await Assert.ThrowsAsync<CourseSearchException>(() => finder.FindAsync(Profile, null, [], CancellationToken.None));
 
         Assert.Contains("cota gratuita", e.Message);
+        Assert.Equal(GeminiCourseFinder.FallbackModels.Length, api.Requests.Count);
+    }
+
+    [Fact]
+    public async Task Model_without_free_quota_falls_back_to_the_next_one()
+    {
+        var (finder, _) = Create("gemini-key",
+            (HttpStatusCode.TooManyRequests, """{"error":{"code":429,"message":"Quota exceeded ... limit: 0"}}"""),
+            (HttpStatusCode.OK, Answer(CoursesJson)));
+
+        var result = await finder.FindAsync(Profile, null, [], CancellationToken.None);
+
+        Assert.Single(result.Courses);
     }
 
     [Theory]

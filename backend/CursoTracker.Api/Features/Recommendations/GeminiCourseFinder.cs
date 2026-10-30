@@ -47,8 +47,10 @@ public sealed class GeminiCourseFinder(
             tools = new[] { new { google_search = new { } } },
         };
 
-        // O Google restringe ou aposenta modelos sem aviso; um 404 passa para o próximo da lista
+        // O Google restringe ou aposenta modelos sem aviso e a cota grátis é por modelo:
+        // 404 ou 429 passa para o próximo da lista
         var models = new[] { options.Value.GeminiModel }.Concat(FallbackModels).Distinct().ToArray();
+        var quotaExhausted = false;
         foreach (var model in models)
         {
             using var request = new HttpRequestMessage(HttpMethod.Post, $"{Endpoint}{model}:generateContent")
@@ -70,17 +72,18 @@ public sealed class GeminiCourseFinder(
             using (response)
             {
                 var payload = await response.Content.ReadAsStringAsync(ct);
-                if (response.StatusCode == HttpStatusCode.TooManyRequests)
-                    throw new CourseSearchException("A cota gratuita da IA acabou por hoje. Tente de novo amanhã.");
                 if (response.IsSuccessStatusCode)
                     return Parse(payload);
 
                 logger.LogWarning("Gemini ({Model}) respondeu {Status}: {Body}", model, (int)response.StatusCode, payload);
-                if (response.StatusCode != HttpStatusCode.NotFound)
+                quotaExhausted |= response.StatusCode == HttpStatusCode.TooManyRequests;
+                if (response.StatusCode is not (HttpStatusCode.NotFound or HttpStatusCode.TooManyRequests))
                     throw new CourseSearchException(DescribeError(response.StatusCode, payload));
             }
         }
-        throw new CourseSearchException($"Nenhum modelo do Gemini está disponível para esta chave ({string.Join(", ", models)}).");
+        throw new CourseSearchException(quotaExhausted
+            ? "A cota gratuita da IA acabou por hoje. Tente de novo amanhã."
+            : $"Nenhum modelo do Gemini está disponível para esta chave ({string.Join(", ", models)}).");
     }
 
     public static readonly string[] FallbackModels = ["gemini-flash-latest", "gemini-3.5-flash-lite", "gemini-3.1-flash-lite"];
