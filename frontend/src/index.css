@@ -172,3 +172,27 @@ button.link.danger { color: var(--danger); }
 .empty-plan h2, .empty-plan p { margin: 0; }
 .empty-plan p { color: var(--muted); }
 @media (max-width: 520px) { .refine { grid-template-columns: 1fr; } }
+
+/* Premium */
+:root { --premium: #b7791f; }
+@media (prefers-color-scheme: dark) { :root { --premium: #f2c35b; } }
+.premium-lock { display: inline-flex; align-items: center; gap: 8px; background: transparent; color: var(--fg); border: 1px dashed var(--premium); border-radius: 8px; padding: 7px 14px; font-weight: 600; cursor: pointer; }
+.premium-lock:hover { background: color-mix(in srgb, var(--premium) 10%, transparent); }
+.premium-tag { font-size: .7rem; text-transform: uppercase; letter-spacing: .06em; color: var(--premium); border: 1px solid currentColor; border-radius: 99px; padding: 1px 8px; }
+.wide-lock { width: 100%; justify-content: center; padding: 14px; }
+button.premium-button { border-color: var(--premium); color: var(--premium); }
+.premium-card { background: var(--surface); border: 1px solid var(--line); border-radius: 12px; padding: 20px; display: grid; gap: 12px; }
+.premium-card h2 { margin: 0; font-size: 1.15rem; }
+.premium-card p { margin: 0; }
+.premium-card ul { margin: 0; padding-left: 20px; display: grid; gap: 6px; }
+.premium-welcome { margin: 0; padding: 12px 16px; border-radius: 10px; border: 1px solid var(--done); background: color-mix(in srgb, var(--done) 10%, var(--surface)); }
+.premium-code { font-family: ui-monospace, monospace; font-size: 1.1rem; letter-spacing: .05em; user-select: all; }
+.premium-codes { list-style: none; padding: 0 !important; font-size: .88rem; color: var(--muted); }
+.redeem { display: flex; flex-wrap: wrap; align-items: end; gap: 12px; }
+.redeem label { flex: 1 1 220px; }
+.locked-course { border-style: dashed; }
+.locked-course h3 { margin: 0; color: var(--muted); filter: blur(3px); user-select: none; }
+.topics { border: 0; padding: 0; margin: 0; display: grid; gap: 8px; justify-items: start; }
+.topics legend { padding: 0; margin-bottom: 4px; font-size: .82rem; color: var(--muted); }
+.topic-row { display: flex; gap: 10px; align-items: center; width: 100%; }
+.topic-row input { flex: 1; }

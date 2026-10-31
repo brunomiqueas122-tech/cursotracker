@@ -2,18 +2,22 @@ import { useCallback, useEffect, useState } from 'react'
 import { api } from './api'
 import { AuthScreen } from './components/AuthScreen'
 import { DiscoverPanel } from './components/DiscoverPanel'
+import { PremiumPanel } from './components/PremiumPanel'
 import { ProfileForm } from './components/ProfileForm'
 import { toIsoDate } from './domain/agenda'
 import { nextPlanDates } from './domain/schedule'
 import { httpStore } from './store'
 import { Tracker } from './Tracker'
-import type { CourseSuggestion, Profile, ProfileAnswers } from './types'
+import type { CourseSuggestion, Me, Profile, ProfileAnswers } from './types'
 
 type Session = 'checking' | 'offline' | 'loggedOut' | 'loggedIn'
-type View = 'tracker' | 'discover' | 'profile'
+type View = 'tracker' | 'discover' | 'profile' | 'premium'
+
+const adminApi = { list: api.premiumCodes, create: api.createPremiumCode }
 
 export default function App() {
   const [session, setSession] = useState<Session>('checking')
+  const [me, setMe] = useState<Me | null>(null)
   const [profile, setProfile] = useState<Profile | null>(null)
   const [view, setView] = useState<View>('tracker')
   const [returnTo, setReturnTo] = useState<View>('tracker')
@@ -23,6 +27,7 @@ export default function App() {
     (signal?: AbortSignal) =>
       api.me(signal).then(async (me) => {
         const current = me?.hasProfile ? await api.profile(signal) : null
+        setMe(me)
         setProfile(current)
         // Primeiro acesso: começa pelas perguntas do perfil
         setView(current ? 'tracker' : 'profile')
@@ -59,6 +64,18 @@ export default function App() {
     setView('profile')
   }
 
+  const openPremium = (from: View) => {
+    setReturnTo(from)
+    setView('premium')
+  }
+
+  // Depois de ativar: limites do perfil e cadeados mudam
+  const refreshAccount = async () => {
+    const [nextMe, nextProfile] = await Promise.all([api.me(), api.profile()])
+    setMe(nextMe)
+    setProfile(nextProfile)
+  }
+
   const saveProfile = async (answers: ProfileAnswers) => {
     const firstTime = profile === null
     setProfile(await api.saveProfile(answers))
@@ -72,9 +89,10 @@ export default function App() {
     setView('discover')
   }
 
-  // Um curso por dia, a partir do fim do plano atual
+  // Premium: um curso por dia, a partir do fim do plano atual. Grátis: tudo para hoje (sem cronograma)
   const addSuggestions = async (list: CourseSuggestion[]) => {
-    const dates = nextPlanDates(await api.courses(), toIsoDate(new Date()), list.length)
+    const today = toIsoDate(new Date())
+    const dates = me?.isPremium ? nextPlanDates(await api.courses(), today, list.length) : list.map(() => today)
     for (const [i, c] of list.entries())
       await api.createCourse({ date: dates[i], platform: c.platform, name: c.name, area: c.area, url: c.url, estimatedHours: c.estimatedHours })
   }
@@ -88,8 +106,27 @@ export default function App() {
       return <AuthScreen onLogin={login} onRegister={register} />
   }
 
+  if (view === 'premium')
+    return (
+      <PremiumPanel
+        status={api.premium}
+        redeem={api.redeemPremium}
+        admin={me?.isAdmin ? adminApi : undefined}
+        onActivated={() => void refreshAccount().catch(() => undefined)}
+        onBack={() => setView(profile ? returnTo : 'profile')}
+      />
+    )
+
   if (view === 'profile' || !profile)
-    return <ProfileForm initial={profile} onSubmit={saveProfile} onCancel={profile ? () => setView(returnTo) : undefined} />
+    return (
+      <ProfileForm
+        initial={profile}
+        topicLimit={me?.isPremium ? null : (profile?.topicLimit ?? 2)}
+        onSubmit={saveProfile}
+        onCancel={profile ? () => setView(returnTo) : undefined}
+        onUpgrade={() => openPremium('profile')}
+      />
+    )
 
   if (view === 'discover')
     return (
@@ -100,6 +137,7 @@ export default function App() {
         onAdd={addSuggestions}
         onEditProfile={() => editProfile('discover')}
         onBack={() => setView('tracker')}
+        onUpgrade={() => openPremium('discover')}
         searchOnOpen={searchOnOpen}
       />
     )
@@ -112,6 +150,9 @@ export default function App() {
       onDiscover={openDiscover}
       onEditProfile={() => editProfile('tracker')}
       importCourses={api.importCourses}
+      free={!me?.isPremium}
+      onUpgrade={() => openPremium('tracker')}
+      premiumLabel={me?.isPremium ? 'Premium' : 'Seja Premium'}
     />
   )
 }

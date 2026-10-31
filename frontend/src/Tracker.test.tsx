@@ -95,4 +95,22 @@ describe('Tracker', () => {
     expect(importCourses).toHaveBeenCalledWith('{"courses":[]}')
     expect(await screen.findByText('2 curso(s) importado(s) para sua conta.')).toBeInTheDocument()
   })
+
+  it('locks the schedule, calendar and certificates on the free plan', async () => {
+    const onUpgrade = vi.fn()
+    setup({ free: true, onUpgrade, premiumLabel: 'Seja Premium' })
+
+    expect(await screen.findByText('AWS Cloud Practitioner Essentials')).toBeInTheDocument()
+    expect(screen.queryByRole('region', { name: 'Agenda' })).not.toBeInTheDocument()
+    expect(screen.queryByRole('button', { name: 'Mover para hoje' })).not.toBeInTheDocument()
+
+    await userEvent.click(screen.getByRole('button', { name: /Cronograma/ }))
+    await userEvent.click(screen.getByRole('button', { name: /Adicionar ao calendário/ }))
+    await userEvent.click(screen.getByRole('button', { name: /Exportar certificados/ }))
+    await userEvent.click(screen.getByRole('button', { name: 'Seja Premium' }))
+    expect(onUpgrade).toHaveBeenCalledTimes(4)
+
+    await userEvent.click(screen.getByRole('button', { name: '+ Novo curso' }))
+    expect(screen.queryByLabelText('Data')).not.toBeInTheDocument()
+  })
 })

@@ -56,7 +56,7 @@ export const courseLanguages = ['Portuguese', 'English', 'Any'] as const
 export type CourseLanguage = (typeof courseLanguages)[number]
 
 export interface ProfileAnswers {
-  lookingFor: string
+  topics: string[]
   goal: LearningGoal
   level: SkillLevel
   language: CourseLanguage
@@ -65,11 +65,33 @@ export interface ProfileAnswers {
 
 export interface Profile extends ProfileAnswers {
   remainingSearchesToday: number
+  /** Cursos grátis que ainda podem ser liberados no mês; null = Premium */
+  freeCoursesLeft: number | null
+  /** Máximo de assuntos; null = Premium (ilimitado) */
+  topicLimit: number | null
 }
 
 export interface Me {
   email: string
   hasProfile: boolean
+  isPremium: boolean
+  isAdmin: boolean
+}
+
+export interface PremiumStatus {
+  isPremium: boolean
+  premiumUntil: string | null
+  forever: boolean
+  contact: string | null
+}
+
+export interface PremiumCode {
+  id: number
+  hint: string
+  days: number | null
+  createdAt: string
+  redeemedByEmail: string | null
+  redeemedAt: string | null
 }
 
 export interface CourseSuggestion {
@@ -81,6 +103,8 @@ export interface CourseSuggestion {
   language: string
   certificate: string
   reason: string
+  /** Plano grátis: sem nome, link nem detalhes até assinar o Premium */
+  locked: boolean
 }
 
 export interface Recommendations {
@@ -88,4 +112,5 @@ export interface Recommendations {
   note: string | null
   remainingSearchesToday: number
   searchedAt: string
+  freeCoursesLeft: number | null
 }

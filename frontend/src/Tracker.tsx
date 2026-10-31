@@ -5,6 +5,7 @@ import { CourseCard } from './components/CourseCard'
 import { CourseForm } from './components/CourseForm'
 import { DashboardPanel } from './components/DashboardPanel'
 import { ImportPanel } from './components/ImportPanel'
+import { PremiumLock } from './components/PremiumLock'
 import { agenda, isOverdue, toIsoDate } from './domain/agenda'
 import { buildCalendar } from './domain/calendar'
 import { portfolioCertificates } from './domain/certificates'
@@ -28,6 +29,11 @@ interface Props {
   onDiscover?: () => void
   onEditProfile?: () => void
   importCourses?: (backupJson: string) => Promise<{ imported: number }>
+  /** Plano grátis: cronograma, calendário, LinkedIn e certificados ficam com cadeado */
+  free?: boolean
+  onUpgrade?: () => void
+  /** Botão do topo que abre a tela do Premium */
+  premiumLabel?: string
   /** Data de hoje (AAAA-MM-DD); injetável para testes */
   today?: string
 }
@@ -39,6 +45,9 @@ export function Tracker({
   onDiscover,
   onEditProfile,
   importCourses,
+  free = false,
+  onUpgrade = () => undefined,
+  premiumLabel,
   today: fixedToday,
 }: Props) {
   const [currentDay, setCurrentDay] = useState(() => toIsoDate(new Date()))
@@ -148,6 +157,11 @@ export function Tracker({
               Descobrir cursos com IA
             </button>
           )}
+          {premiumLabel && (
+            <button type="button" className="secondary premium-button" onClick={onUpgrade}>
+              {premiumLabel}
+            </button>
+          )}
           {onEditProfile && (
             <button type="button" className="secondary" onClick={onEditProfile}>
               Perfil
@@ -174,7 +188,15 @@ export function Tracker({
         </section>
       )}
       {summary && <DashboardPanel summary={summary} />}
-      <AgendaPanel {...agenda(courses, today)} onMoveToToday={moveToToday} />
+      {free ? (
+        courses.length > 0 && (
+          <PremiumLock onUpgrade={onUpgrade} className="wide-lock">
+            Cronograma: o que estudar hoje, atrasados e reagendar
+          </PremiumLock>
+        )
+      ) : (
+        <AgendaPanel {...agenda(courses, today)} onMoveToToday={moveToToday} />
+      )}
 
       <div className="filters">
         <label htmlFor="filter-status">
@@ -199,15 +221,21 @@ export function Tracker({
             ))}
           </select>
         </label>
-        <button
-          type="button"
-          className="secondary calendar"
-          onClick={exportCalendar}
-          disabled={pendingCount === 0}
-          title="Baixa um arquivo .ics com um lembrete às 9h no dia de cada curso pendente"
-        >
-          Adicionar ao calendário
-        </button>
+        {free ? (
+          <PremiumLock onUpgrade={onUpgrade} className="calendar">
+            Adicionar ao calendário
+          </PremiumLock>
+        ) : (
+          <button
+            type="button"
+            className="secondary calendar"
+            onClick={exportCalendar}
+            disabled={pendingCount === 0}
+            title="Baixa um arquivo .ics com um lembrete às 9h no dia de cada curso pendente"
+          >
+            Adicionar ao calendário
+          </button>
+        )}
         <button type="button" className="new-course" onClick={() => setAdding(true)} disabled={adding}>
           + Novo curso
         </button>
@@ -219,6 +247,7 @@ export function Tracker({
           <CourseForm
             initial={{ date: today, platform: '', name: '', area: '', url: '', estimatedHours: 2 }}
             areas={areas}
+            hideDate={free}
             submitLabel="Adicionar curso"
             onSubmit={createCourse}
             onCancel={() => setAdding(false)}
@@ -245,6 +274,8 @@ export function Tracker({
               timerElsewhere={timer !== null && timer.courseId !== course.id}
               onStartTimer={startTimer}
               onClearTimer={clearTimer}
+              free={free}
+              onUpgrade={onUpgrade}
             />
           ))}
         </section>
@@ -260,9 +291,13 @@ export function Tracker({
             : 'Quando você concluir um curso e marcar o certificado como recebido, ele aparece aqui para ir ao seu portfólio.'}
         </p>
         <div className="backup-actions">
-          <button type="button" onClick={exportCertificates} disabled={certificates.length === 0}>
-            Exportar certificados
-          </button>
+          {free ? (
+            <PremiumLock onUpgrade={onUpgrade}>Exportar certificados</PremiumLock>
+          ) : (
+            <button type="button" onClick={exportCertificates} disabled={certificates.length === 0}>
+              Exportar certificados
+            </button>
+          )}
         </div>
       </section>
 

@@ -4,6 +4,7 @@ import { linkedInCertificationUrl, linkedInShareUrl } from '../linkedin'
 import { courseStatuses, type Course, type CourseDetails, type CourseStatus, type UpdateProgressRequest } from '../types'
 import { elapsedHours } from '../timer'
 import { CourseForm } from './CourseForm'
+import { PremiumLock } from './PremiumLock'
 import { StudyTimer } from './StudyTimer'
 
 interface Props {
@@ -18,6 +19,9 @@ interface Props {
   timerElsewhere?: boolean
   onStartTimer?: (id: number) => void
   onClearTimer?: () => void
+  /** Plano grátis: LinkedIn com cadeado e sem reagendar */
+  free?: boolean
+  onUpgrade?: () => void
 }
 
 function toDraft(course: Course): UpdateProgressRequest {
@@ -42,6 +46,8 @@ export function CourseCard({
   timerElsewhere = false,
   onStartTimer,
   onClearTimer,
+  free = false,
+  onUpgrade = () => undefined,
 }: Props) {
   const [draft, setDraft] = useState(() => toDraft(course))
   const [saving, setSaving] = useState(false)
@@ -119,6 +125,7 @@ export function CourseCard({
             estimatedHours: course.estimatedHours,
           }}
           areas={areas}
+          hideDate={free}
           submitLabel="Salvar alterações"
           onSubmit={async (details) => {
             await onEdit(course.id, details)
@@ -240,6 +247,9 @@ export function CourseCard({
             {!course.certificateUrl && ' Dica: salve antes o link do certificado para ele ir junto.'}
           </p>
           <div className="linkedin-actions">
+            {free ? (
+              <PremiumLock onUpgrade={onUpgrade}>Adicionar ao LinkedIn</PremiumLock>
+            ) : (
             <a
               className="linkedin-button"
               href={linkedInCertificationUrl(course)}
@@ -249,6 +259,7 @@ export function CourseCard({
             >
               Adicionar ao LinkedIn
             </a>
+            )}
             {openedLinkedIn && (
               <button type="button" className="secondary" onClick={() => save({ ...draft, onLinkedIn: true })} disabled={saving}>
                 Já adicionei
@@ -278,7 +289,7 @@ export function CourseCard({
             Ver certificado
           </a>
         )}
-        {course.status === 'Completed' && (
+        {course.status === 'Completed' && !free && (
           <a href={linkedInShareUrl(course)} target="_blank" rel="noreferrer">
             Compartilhar no LinkedIn
           </a>

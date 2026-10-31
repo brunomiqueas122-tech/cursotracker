@@ -1,15 +1,18 @@
 import { render, screen, within } from '@testing-library/react'
 import userEvent from '@testing-library/user-event'
 import type { CourseSuggestion, Profile, Recommendations } from '../types'
+import { PremiumRequiredError } from '../api'
 import { DiscoverPanel } from './DiscoverPanel'
 
 const profile: Profile = {
-  lookingFor: 'Cloud e DevOps para conseguir emprego',
+  topics: ['Cloud e DevOps', 'Linux'],
   goal: 'GetJob',
   level: 'Beginner',
   language: 'Portuguese',
   hoursPerWeek: 6,
   remainingSearchesToday: 5,
+  freeCoursesLeft: null,
+  topicLimit: null,
 }
 
 const suggestion = (name: string): CourseSuggestion => ({
@@ -21,6 +24,7 @@ const suggestion = (name: string): CourseSuggestion => ({
   language: 'Inglês',
   certificate: 'Certificado de conclusão gratuito',
   reason: 'Base pedida em vagas de entrada.',
+  locked: false,
 })
 
 const found: Recommendations = {
@@ -28,6 +32,7 @@ const found: Recommendations = {
   note: 'Poucas opções em português.',
   remainingSearchesToday: 0,
   searchedAt: '2026-10-26T13:05:00Z',
+  freeCoursesLeft: null,
 }
 
 function setup(p: Partial<Parameters<typeof DiscoverPanel>[0]> = {}) {
@@ -38,6 +43,7 @@ function setup(p: Partial<Parameters<typeof DiscoverPanel>[0]> = {}) {
     onAdd: vi.fn<(s: CourseSuggestion[]) => Promise<void>>().mockResolvedValue(),
     onEditProfile: vi.fn(),
     onBack: vi.fn(),
+    onUpgrade: vi.fn(),
     ...p,
   }
   render(<DiscoverPanel {...props} />)
@@ -84,6 +90,38 @@ describe('DiscoverPanel', () => {
     })
 
     expect(await screen.findByRole('alert')).toHaveTextContent('Você já fez as 5 buscas de hoje.')
+  })
+
+  it('shows locked courses on the free plan and offers Premium', async () => {
+    const locked: CourseSuggestion = { ...suggestion(''), url: '', reason: '', certificate: '', locked: true }
+    const { onUpgrade, onAdd } = setup({
+      profile: { ...profile, freeCoursesLeft: 3, topicLimit: 2 },
+      searchOnOpen: true,
+      search: vi.fn().mockResolvedValue({ ...found, courses: [suggestion('Docker Essentials'), locked, locked], freeCoursesLeft: 0 }),
+    })
+
+    expect(await screen.findByRole('link', { name: 'Docker Essentials' })).toBeInTheDocument()
+    expect(screen.getByText('2 curso(s) bloqueado(s): no plano grátis você libera 3 cursos por mês.')).toBeInTheDocument()
+    expect(screen.getByRole('button', { name: /Buscar de novo/ })).toBeDisabled()
+
+    await userEvent.click(screen.getAllByRole('button', { name: /Desbloquear este curso/ })[0])
+    expect(onUpgrade).toHaveBeenCalledOnce()
+
+    // "Adicionar todos" não existe com um só curso liberado; o liberado ainda pode ser adicionado
+    expect(screen.queryByRole('button', { name: /Adicionar todos/ })).not.toBeInTheDocument()
+    await userEvent.click(screen.getByRole('button', { name: 'Adicionar ao plano' }))
+    expect(onAdd).toHaveBeenLastCalledWith([expect.objectContaining({ name: 'Docker Essentials' })])
+  })
+
+  it('offers Premium when the server says the free courses are over', async () => {
+    const { onUpgrade } = setup({
+      searchOnOpen: true,
+      search: vi.fn().mockRejectedValue(new PremiumRequiredError('Você já liberou os 3 cursos grátis deste mês.')),
+    })
+
+    expect(await screen.findByRole('alert')).toHaveTextContent('Você já liberou os 3 cursos grátis deste mês.')
+    await userEvent.click(screen.getByRole('button', { name: /Conhecer o Premium/ }))
+    expect(onUpgrade).toHaveBeenCalledOnce()
   })
 
   it('disables searching when no searches are left', () => {

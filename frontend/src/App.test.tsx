@@ -18,7 +18,10 @@ const emptyDashboard = {
   totalCourses: 0, completedCourses: 0, skippedCourses: 0, completedPercent: 0, certificatesReceived: 0,
   certificatesPending: 0, onLinkedIn: 0, estimatedHours: 0, hoursDone: 0, days: [],
 }
-const profile = { lookingFor: 'Cloud', goal: 'GetJob', level: 'Beginner', language: 'Portuguese', hoursPerWeek: 5, remainingSearchesToday: 5 }
+const profile = {
+  topics: ['Cloud'], goal: 'GetJob', level: 'Beginner', language: 'Portuguese', hoursPerWeek: 5, remainingSearchesToday: 5,
+  freeCoursesLeft: 3, topicLimit: 2,
+}
 
 afterEach(() => vi.unstubAllGlobals())
 
@@ -51,12 +54,13 @@ describe('App', () => {
         return noContent()
       }
       if (!registered) return unauthorized()
-      if (url === '/api/auth/me') return json({ email: 'ana@example.com', hasProfile })
+      if (url === '/api/auth/me') return json({ email: 'ana@example.com', hasProfile, isPremium: false, isAdmin: false })
       if (url === '/api/profile' && init?.method === 'PUT') {
         hasProfile = true
         return json(profile)
       }
-      if (url === '/api/recommendations') return json({ courses: [], note: 'Nada por hoje.', remainingSearchesToday: 0, searchedAt: '2026-10-26T13:05:00Z' })
+      if (url === '/api/recommendations')
+        return json({ courses: [], note: 'Nada por hoje.', remainingSearchesToday: 0, searchedAt: '2026-10-26T13:05:00Z', freeCoursesLeft: 3 })
       return json([])
     })
     render(<App />)
@@ -67,17 +71,23 @@ describe('App', () => {
     await userEvent.type(screen.getByLabelText('Código de convite'), 'convite')
     await userEvent.click(screen.getByRole('button', { name: 'Criar conta' }))
 
-    await userEvent.type(await screen.findByLabelText('Que tipo de curso você está procurando?'), 'Cloud')
+    await userEvent.type(await screen.findByLabelText('Assunto 1'), 'Cloud')
+    await userEvent.click(screen.getByRole('button', { name: '+ Adicionar assunto' }))
+    await userEvent.type(screen.getByLabelText('Assunto 2'), 'SQL')
+    // Plano grátis: o terceiro assunto fica com cadeado
+    expect(screen.getByRole('button', { name: /Adicionar mais assuntos/ })).toBeInTheDocument()
     await userEvent.click(screen.getByRole('button', { name: 'Buscar meus cursos' }))
 
     expect(await screen.findByText('Nada por hoje.')).toBeInTheDocument()
+    const saved = fetchMock.mock.calls.find(([url, init]) => url === '/api/profile' && init?.method === 'PUT')!
+    expect(JSON.parse(saved[1]!.body as string).topics).toEqual(['Cloud', 'SQL'])
     const register = fetchMock.mock.calls.find(([url]) => url === '/api/auth/register')!
     expect(JSON.parse(register[1]!.body as string)).toEqual({ email: 'ana@example.com', password: 'senha1234', inviteCode: 'convite' })
   })
 
   it('opens the plan for a returning user', async () => {
     mockFetch((url) => {
-      if (url === '/api/auth/me') return json({ email: 'ana@example.com', hasProfile: true })
+      if (url === '/api/auth/me') return json({ email: 'ana@example.com', hasProfile: true, isPremium: false, isAdmin: false })
       if (url === '/api/profile') return json(profile)
       if (url === '/api/dashboard') return json(emptyDashboard)
       return json([])

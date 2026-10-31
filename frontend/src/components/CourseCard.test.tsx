@@ -132,4 +132,13 @@ describe('CourseCard', () => {
     expect(screen.getByRole('button', { name: 'Iniciar estudo' })).toBeDisabled()
     expect(screen.getByText('Cronômetro rodando em outro curso')).toBeInTheDocument()
   })
+
+  it('locks LinkedIn on the free plan', async () => {
+    const onUpgrade = vi.fn()
+    render(<CourseCard course={{ ...course, status: 'Completed' }} onSave={vi.fn()} free onUpgrade={onUpgrade} />)
+
+    expect(screen.queryByRole('link', { name: /LinkedIn/ })).not.toBeInTheDocument()
+    await userEvent.click(screen.getByRole('button', { name: /Adicionar ao LinkedIn/ }))
+    expect(onUpgrade).toHaveBeenCalledOnce()
+  })
 })

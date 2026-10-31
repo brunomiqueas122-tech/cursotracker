@@ -4,12 +4,14 @@ import type { CourseDetails } from '../types'
 interface Props {
   initial: CourseDetails
   areas: string[]
+  /** Plano grátis: sem escolher a data (o cronograma é do Premium) */
+  hideDate?: boolean
   submitLabel: string
   onSubmit: (details: CourseDetails) => Promise<void>
   onCancel: () => void
 }
 
-export function CourseForm({ initial, areas, submitLabel, onSubmit, onCancel }: Props) {
+export function CourseForm({ initial, areas, hideDate = false, submitLabel, onSubmit, onCancel }: Props) {
   const [form, setForm] = useState(initial)
   const [error, setError] = useState<string | null>(null)
   const [saving, setSaving] = useState(false)
@@ -36,10 +38,12 @@ export function CourseForm({ initial, areas, submitLabel, onSubmit, onCancel }: 
           Nome do curso
           <input id={`${id}-name`} required value={form.name} onChange={(e) => update({ name: e.target.value })} />
         </label>
-        <label htmlFor={`${id}-date`}>
-          Data
-          <input id={`${id}-date`} type="date" required value={form.date} onChange={(e) => update({ date: e.target.value })} />
-        </label>
+        {!hideDate && (
+          <label htmlFor={`${id}-date`}>
+            Data
+            <input id={`${id}-date`} type="date" required value={form.date} onChange={(e) => update({ date: e.target.value })} />
+          </label>
+        )}
         <label htmlFor={`${id}-hours`}>
           Horas estimadas
           <input

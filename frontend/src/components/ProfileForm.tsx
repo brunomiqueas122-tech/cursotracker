@@ -9,29 +9,41 @@ import {
   type ProfileAnswers,
   type SkillLevel,
 } from '../types'
+import { PremiumLock } from './PremiumLock'
 
 interface Props {
   initial: ProfileAnswers | null
+  /** Máximo de assuntos; null = ilimitado (Premium) */
+  topicLimit: number | null
   onSubmit: (answers: ProfileAnswers) => Promise<void>
   onCancel?: () => void
+  onUpgrade: () => void
 }
 
-const empty: ProfileAnswers = { lookingFor: '', goal: 'GetJob', level: 'Beginner', language: 'Portuguese', hoursPerWeek: 5 }
+const empty: ProfileAnswers = { topics: [''], goal: 'GetJob', level: 'Beginner', language: 'Portuguese', hoursPerWeek: 5 }
 
-export function ProfileForm({ initial, onSubmit, onCancel }: Props) {
-  const [form, setForm] = useState(initial ?? empty)
+export function ProfileForm({ initial, topicLimit, onSubmit, onCancel, onUpgrade }: Props) {
+  // Só os campos do formulário: o perfil salvo traz também contadores do servidor
+  const [form, setForm] = useState<ProfileAnswers>(() =>
+    initial
+      ? { topics: initial.topics, goal: initial.goal, level: initial.level, language: initial.language, hoursPerWeek: initial.hoursPerWeek }
+      : empty,
+  )
   const [error, setError] = useState<string | null>(null)
   const [busy, setBusy] = useState(false)
   const firstTime = initial === null
 
   const update = (patch: Partial<ProfileAnswers>) => setForm((f) => ({ ...f, ...patch }))
+  const setTopic = (index: number, value: string) => update({ topics: form.topics.map((t, i) => (i === index ? value : t)) })
+  const removeTopic = (index: number) => update({ topics: form.topics.filter((_, i) => i !== index) })
+  const atLimit = topicLimit !== null && form.topics.length >= topicLimit
 
   async function submit(e: FormEvent) {
     e.preventDefault()
     setBusy(true)
     setError(null)
     try {
-      await onSubmit(form)
+      await onSubmit({ ...form, topics: form.topics.map((t) => t.trim()).filter((t) => t !== '') })
     } catch (err) {
       setError(err instanceof Error ? err.message : 'Não foi possível salvar.')
       setBusy(false)
@@ -49,18 +61,36 @@ export function ProfileForm({ initial, onSubmit, onCancel }: Props) {
         </p>
       </header>
       <form className="profile-form" onSubmit={submit}>
-        <label htmlFor="lookingFor">
-          Que tipo de curso você está procurando?
-          <textarea
-            id="lookingFor"
-            rows={3}
-            required
-            maxLength={500}
-            placeholder="Ex.: quero aprender cloud e DevOps para conseguir meu primeiro emprego na área"
-            value={form.lookingFor}
-            onChange={(e) => update({ lookingFor: e.target.value })}
-          />
-        </label>
+        <fieldset className="topics">
+          <legend>Que tipo de curso você está procurando?</legend>
+          <small className="hint">
+            Um assunto por linha.{topicLimit !== null && ` No plano grátis, até ${topicLimit} assuntos.`}
+          </small>
+          {form.topics.map((topic, i) => (
+            <div key={i} className="topic-row">
+              <input
+                aria-label={`Assunto ${i + 1}`}
+                required={i === 0}
+                maxLength={200}
+                placeholder={i === 0 ? 'Ex.: cloud e DevOps para conseguir meu primeiro emprego' : 'Ex.: SQL para análise de dados'}
+                value={topic}
+                onChange={(e) => setTopic(i, e.target.value)}
+              />
+              {form.topics.length > 1 && (
+                <button type="button" className="link danger" onClick={() => removeTopic(i)} aria-label={`Remover assunto ${i + 1}`}>
+                  Remover
+                </button>
+              )}
+            </div>
+          ))}
+          {atLimit ? (
+            <PremiumLock onUpgrade={onUpgrade}>Adicionar mais assuntos</PremiumLock>
+          ) : (
+            <button type="button" className="secondary" onClick={() => update({ topics: [...form.topics, ''] })}>
+              + Adicionar assunto
+            </button>
+          )}
+        </fieldset>
         <div className="fields">
           <label htmlFor="goal">
             Objetivo

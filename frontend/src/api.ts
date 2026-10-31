@@ -3,6 +3,8 @@ import type {
   CourseDetails,
   DashboardSummary,
   Me,
+  PremiumCode,
+  PremiumStatus,
   Profile,
   ProfileAnswers,
   Recommendations,
@@ -26,6 +28,9 @@ export class NotFoundError extends Error {
   }
 }
 
+/** 402: recurso do Premium; a tela oferece a assinatura */
+export class PremiumRequiredError extends Error {}
+
 async function problemMessage(response: Response): Promise<string | null> {
   try {
     const problem = (await response.json()) as ProblemDetails
@@ -46,6 +51,7 @@ async function send(url: string, init?: RequestInit): Promise<Response> {
   if (response.status === 401) throw new UnauthorizedError()
   if (response.status === 404) throw new NotFoundError()
   const message = await problemMessage(response)
+  if (response.status === 402) throw new PremiumRequiredError(message ?? 'Recurso do Premium.')
   if (message) throw new Error(message)
   if (response.status === 429) throw new Error('Muitas tentativas. Espere 1 minuto e tente de novo.')
   throw new Error('Não foi possível falar com o servidor. Tente de novo em instantes.')
@@ -112,4 +118,9 @@ export const api = {
       throw e
     }
   },
+
+  premium: () => json<PremiumStatus>('/api/premium'),
+  redeemPremium: (code: string) => json<PremiumStatus>('/api/premium/redeem', post({ code })),
+  premiumCodes: () => json<PremiumCode[]>('/api/premium/codes'),
+  createPremiumCode: (days: number | null) => json<{ code: string; days: number | null }>('/api/premium/codes', post({ days })),
 }

@@ -5,7 +5,8 @@ Acompanhe cursos gratuitos com certificado. Crie sua conta, conte o que você pr
 ## Funcionalidades
 
 - Contas (e-mail e senha) com código de convite
-- Onboarding: perfil com o que você procura, objetivo, nível, idioma e horas por semana
+- Onboarding: perfil com os assuntos que você procura, objetivo, nível, idioma e horas por semana
+- Plano grátis e **Premium** (ativado por código de uso único gerado pelo administrador)
 - Descobrir cursos com IA (Gemini + busca do Google, cota grátis), 1 busca por dia salva no banco e reaproveitada
 - Plano por dia com "Para hoje" e "Atrasados"; criar, editar, reagendar e excluir cursos
 - Cronômetro de estudo, dashboard de progresso, lembretes no calendário (.ics)
@@ -67,13 +68,28 @@ Cada push na `main` publica de novo. No plano grátis o servidor "dorme" após 1
 | `Ai__ClaudeModel` | Modelo do Claude | `claude-opus-5-5` |
 | `Ai__DailySearchLimit` | Buscas com IA por usuário por dia | `1` |
 | `Ai__MaxWebSearches` | Pesquisas na web por busca (Claude) | `6` |
+| `Premium__AdminEmails` | E-mails (separados por vírgula) que geram códigos premium | — |
+| `Premium__Contact` | Contato mostrado na tela do Premium | — |
+| `Premium__FreeCoursesPerMonth` | Cursos liberados por mês no plano grátis | `3` |
+| `Premium__FreeTopics` | Assuntos no perfil no plano grátis | `2` |
+
+## Premium
+
+| | Grátis | Premium |
+|---|---|---|
+| Cursos encontrados pela IA | 3 liberados por mês, os outros com cadeado | Todos |
+| Assuntos no perfil | Até 2 | Ilimitados |
+| Cronograma (por dia, "Para hoje", atrasados, reagendar) | — | Sim |
+| Lembretes no calendário, LinkedIn, exportar certificados | — | Sim |
+
+Para ativar: entre com o e-mail de `Premium__AdminEmails`, abra **Seja Premium** e gere um código (30 dias, 1 ano ou para sempre). A pessoa digita o código na mesma tela. O limite de cursos e de assuntos é conferido no servidor; os outros recursos são da tela.
 
 ## API
 
 | Método | Rota | |
 |---|---|---|
 | POST | `/api/auth/register` · `/login` · `/logout` | Conta (cookie) |
-| GET | `/api/auth/me` | Usuário logado e se já tem perfil |
+| GET | `/api/auth/me` | Usuário logado, se já tem perfil, se é Premium/admin |
 | GET/PUT | `/api/profile` | Perfil usado pela IA |
 | POST | `/api/recommendations` | Busca cursos com IA (`{ refinement? }`) e salva o resultado |
 | GET | `/api/recommendations/latest` | Última busca salva, sem os cursos já no plano |
@@ -82,3 +98,6 @@ Cada push na `main` publica de novo. No plano grátis o servidor "dorme" após 1
 | PUT | `/api/courses/{id}/progress` | Horas, status, certificado, LinkedIn, anotações |
 | POST | `/api/courses/import` | Importa o backup da versão antiga |
 | GET | `/api/dashboard` | % concluído, certificados, horas |
+| GET | `/api/premium` | Situação do Premium e contato |
+| POST | `/api/premium/redeem` | Ativa o Premium com um código |
+| GET/POST | `/api/premium/codes` | Lista / gera códigos (só administrador) |

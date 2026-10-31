@@ -1,6 +1,8 @@
 import { useCallback, useEffect, useRef, useState, type FormEvent } from 'react'
 import { formatDateTime, formatHours, goalLabels, levelLabels } from '../format'
+import { PremiumRequiredError } from '../api'
 import type { CourseSuggestion, Profile, Recommendations } from '../types'
+import { PremiumLock } from './PremiumLock'
 
 interface Props {
   profile: Profile
@@ -10,13 +12,16 @@ interface Props {
   onAdd: (suggestions: CourseSuggestion[]) => Promise<void>
   onEditProfile: () => void
   onBack: () => void
+  onUpgrade: () => void
   /** Busca assim que abre (primeira vez, logo depois do perfil) */
   searchOnOpen?: boolean
 }
 
-export function DiscoverPanel({ profile, search, latest, onAdd, onEditProfile, onBack, searchOnOpen = false }: Props) {
+export function DiscoverPanel({ profile, search, latest, onAdd, onEditProfile, onBack, onUpgrade, searchOnOpen = false }: Props) {
   const [results, setResults] = useState<Recommendations | null>(null)
   const [remaining, setRemaining] = useState(profile.remainingSearchesToday)
+  const [freeLeft, setFreeLeft] = useState(profile.freeCoursesLeft)
+  const [needsPremium, setNeedsPremium] = useState(false)
   const [refinement, setRefinement] = useState('')
   const [loading, setLoading] = useState(searchOnOpen)
   const [error, setError] = useState<string | null>(null)
@@ -29,9 +34,13 @@ export function DiscoverPanel({ profile, search, latest, onAdd, onEditProfile, o
         .then((found) => {
           setResults(found)
           setRemaining(found.remainingSearchesToday)
+          setFreeLeft(found.freeCoursesLeft)
           setAdded(new Set())
         })
-        .catch((e: unknown) => setError(e instanceof Error ? e.message : 'A busca falhou.'))
+        .catch((e: unknown) => {
+          setNeedsPremium(e instanceof PremiumRequiredError)
+          setError(e instanceof Error ? e.message : 'A busca falhou.')
+        })
         .finally(() => setLoading(false)),
     [search],
   )
@@ -39,6 +48,7 @@ export function DiscoverPanel({ profile, search, latest, onAdd, onEditProfile, o
   function run(text: string | null) {
     setLoading(true)
     setError(null)
+    setNeedsPremium(false)
     void fetchResults(text)
   }
 
@@ -56,6 +66,7 @@ export function DiscoverPanel({ profile, search, latest, onAdd, onEditProfile, o
         if (!saved) return
         setResults(saved)
         setRemaining(saved.remainingSearchesToday)
+        setFreeLeft(saved.freeCoursesLeft)
       })
       .catch(() => undefined) // sem a última busca a tela continua funcionando
   }, [searchOnOpen, fetchResults, latest])
@@ -78,7 +89,9 @@ export function DiscoverPanel({ profile, search, latest, onAdd, onEditProfile, o
     }
   }
 
-  const pending = results?.courses.filter((c) => !added.has(c.url)) ?? []
+  const pending = results?.courses.filter((c) => !c.locked && !added.has(c.url)) ?? []
+  const lockedCount = results?.courses.filter((c) => c.locked).length ?? 0
+  const outOfFreeCourses = freeLeft === 0
 
   return (
     <main className="page">
@@ -92,7 +105,7 @@ export function DiscoverPanel({ profile, search, latest, onAdd, onEditProfile, o
 
       <section className="profile-summary" aria-label="Seu perfil">
         <p>
-          <strong>{profile.lookingFor}</strong>
+          <strong>{profile.topics.join(' · ')}</strong>
           <br />
           {goalLabels[profile.goal]} · {levelLabels[profile.level]} · {profile.hoursPerWeek} h/semana
         </p>
@@ -112,15 +125,25 @@ export function DiscoverPanel({ profile, search, latest, onAdd, onEditProfile, o
             onChange={(e) => setRefinement(e.target.value)}
           />
         </label>
-        <button type="submit" disabled={loading || remaining === 0}>
+        <button type="submit" disabled={loading || remaining === 0 || outOfFreeCourses}>
           {loading ? 'Pesquisando…' : results ? 'Buscar de novo' : 'Buscar cursos'}
         </button>
         <small className="hint">
           {remaining === 0
             ? 'Você já fez a busca de hoje. A próxima fica disponível amanhã.'
             : `${remaining} busca(s) disponível(is) hoje.`}
+          {freeLeft !== null &&
+            (outOfFreeCourses
+              ? ' Você já liberou os cursos grátis deste mês.'
+              : ` Plano grátis: ${freeLeft} curso(s) para liberar este mês.`)}
         </small>
       </form>
+
+      {outOfFreeCourses && !needsPremium && (
+        <PremiumLock onUpgrade={onUpgrade} className="wide-lock">
+          Ver todos os cursos com o Premium
+        </PremiumLock>
+      )}
 
       {loading && (
         <p className="searching" role="status">
@@ -128,6 +151,11 @@ export function DiscoverPanel({ profile, search, latest, onAdd, onEditProfile, o
         </p>
       )}
       {error && <p className="error" role="alert">{error}</p>}
+      {needsPremium && (
+        <PremiumLock onUpgrade={onUpgrade} className="wide-lock">
+          Conhecer o Premium
+        </PremiumLock>
+      )}
 
       {results && !loading && (
         <section className="suggestions" aria-label="Sugestões">
@@ -139,7 +167,21 @@ export function DiscoverPanel({ profile, search, latest, onAdd, onEditProfile, o
               Adicionar todos ao plano ({pending.length})
             </button>
           )}
-          {results.courses.map((c) => (
+          {lockedCount > 0 && (
+            <p className="note">
+              {lockedCount} curso(s) bloqueado(s): no plano grátis você libera 3 cursos por mês.
+            </p>
+          )}
+          {results.courses.map((c, i) =>
+            c.locked ? (
+              <article key={`locked-${i}`} className="course suggestion locked-course">
+                <span className="course-meta">
+                  {c.platform} · {c.area} · {formatHours(c.estimatedHours)} · {c.language}
+                </span>
+                <h3 aria-hidden="true">Curso gratuito com certificado ••••••••</h3>
+                <PremiumLock onUpgrade={onUpgrade}>Desbloquear este curso</PremiumLock>
+              </article>
+            ) : (
             <article key={c.url} className="course suggestion">
               <span className="course-meta">
                 {c.platform} · {c.area} · {formatHours(c.estimatedHours)} · {c.language}
@@ -161,7 +203,8 @@ export function DiscoverPanel({ profile, search, latest, onAdd, onEditProfile, o
                 )}
               </div>
             </article>
-          ))}
+            ),
+          )}
           <p className="hint">
             A IA confere as páginas oficiais, mas pode errar: confirme no site do curso antes de começar.
           </p>
