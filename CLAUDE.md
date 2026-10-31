@@ -7,12 +7,13 @@ App para acompanhar cursos gratuitos com certificado. Cada pessoa tem conta; no 
 - Contas: ASP.NET Core Identity com cookie; cadastro exige código de convite (`Auth:InviteCode`)
 - IA: atrás de `ICourseFinder`. Padrão: Gemini (cota grátis) com `google_search` via REST; alternativa: Claude (SDK oficial da Anthropic, `claude-opus-5-5` + web search) com `Ai:Provider=Claude`
 - Busca com IA: 1 por usuário por dia (configurável); cada resultado é salvo em `RecommendationRuns` e reaproveitado
+- Premium: `AppUser.PremiumUntil`, ativado por código de uso único (`PremiumCodes`, só o hash) gerado por admin (`Premium:AdminEmails`). Grátis: 3 cursos liberados por mês e 2 assuntos (conferido no servidor, 402); cronograma, calendário, LinkedIn e certificados com cadeado na tela
 - Frontend: React + TypeScript + Vite, servido pela própria API (`wwwroot`)
 - Testes: xUnit + Testcontainers/PostgreSQL (backend), Vitest (frontend)
 - Deploy: Render (Docker, `render.yaml`) + Neon
 
 ## Arquitetura
-- Vertical slices por feature (`Features/Auth`, `Features/Cursos`, `Features/Dashboard`, `Features/Profile`, `Features/Recommendations`), sem camadas genéricas vazias
+- Vertical slices por feature (`Features/Auth`, `Features/Cursos`, `Features/Dashboard`, `Features/Premium`, `Features/Profile`, `Features/Recommendations`), sem camadas genéricas vazias
 - Domínio sem dependência de infraestrutura; validação na borda (FluentValidation)
 - Sem repositório sobre EF Core; usar DbContext direto
 - Abstração só quando houver segundo uso real (YAGNI)
@@ -20,7 +21,7 @@ App para acompanhar cursos gratuitos com certificado. Cada pessoa tem conta; no 
 
 ## Domínio
 Course (por usuário): day, date, platform, name, area, url, estimatedHours, hoursDone, status (NotStarted|InProgress|Completed|Skipped), completedAt, certificateReceived, certificateUrl, onLinkedIn, notes. "Dia N" é derivado da data (data mais antiga = dia 1).
-UserProfile: lookingFor, goal, level, language, hoursPerWeek + limite diário de buscas com IA.
+UserProfile: topics (lista de assuntos), goal, level, language, hoursPerWeek + limite diário de buscas com IA + cursos grátis liberados no mês.
 Dashboard: % concluído, certificados, horas estimadas vs. feitas (total e por dia).
 
 ## Padrões

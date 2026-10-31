@@ -23,7 +23,7 @@ public enum CourseLanguage
 }
 
 public sealed record ProfileAnswers(
-    string LookingFor,
+    IReadOnlyList<string> Topics,
     LearningGoal Goal,
     SkillLevel Level,
     CourseLanguage Language,
@@ -33,13 +33,16 @@ public sealed record ProfileAnswers(
 public sealed class UserProfile
 {
     public string UserId { get; private set; } = "";
-    public string LookingFor { get; private set; } = "";
+    public List<string> Topics { get; private set; } = [];
     public LearningGoal Goal { get; private set; }
     public SkillLevel Level { get; private set; }
     public CourseLanguage Language { get; private set; }
     public int HoursPerWeek { get; private set; }
     public DateOnly? SearchDate { get; private set; }
     public int SearchesOnDate { get; private set; }
+    /// <summary>Primeiro dia do mês em que os cursos grátis foram liberados.</summary>
+    public DateOnly? RevealMonth { get; private set; }
+    public int RevealedInMonth { get; private set; }
 
     private UserProfile() { } // EF Core
 
@@ -52,10 +55,16 @@ public sealed class UserProfile
 
     public void Update(ProfileAnswers answers)
     {
-        ArgumentException.ThrowIfNullOrWhiteSpace(answers.LookingFor);
+        var topics = answers.Topics
+            .Select(t => t?.Trim() ?? "")
+            .Where(t => t.Length > 0)
+            .Distinct(StringComparer.OrdinalIgnoreCase)
+            .ToList();
+        if (topics.Count == 0)
+            throw new ArgumentException("Informe pelo menos um assunto.", nameof(answers));
         ArgumentOutOfRangeException.ThrowIfNegativeOrZero(answers.HoursPerWeek);
 
-        LookingFor = answers.LookingFor.Trim();
+        Topics = topics;
         Goal = answers.Goal;
         Level = answers.Level;
         Language = answers.Language;
@@ -85,4 +94,22 @@ public sealed class UserProfile
         if (SearchDate == today && SearchesOnDate > 0)
             SearchesOnDate--;
     }
+
+    public int FreeCoursesLeft(DateOnly today, int monthlyLimit) =>
+        RevealMonth == MonthOf(today) ? Math.Max(0, monthlyLimit - RevealedInMonth) : monthlyLimit;
+
+    /// <summary>Libera até <paramref name="wanted"/> cursos da cota grátis do mês; devolve quantos foram liberados.</summary>
+    public int RevealCourses(DateOnly today, int wanted, int monthlyLimit)
+    {
+        if (RevealMonth != MonthOf(today))
+        {
+            RevealMonth = MonthOf(today);
+            RevealedInMonth = 0;
+        }
+        var granted = Math.Clamp(wanted, 0, Math.Max(0, monthlyLimit - RevealedInMonth));
+        RevealedInMonth += granted;
+        return granted;
+    }
+
+    static DateOnly MonthOf(DateOnly day) => new(day.Year, day.Month, 1);
 }

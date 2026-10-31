@@ -23,7 +23,9 @@ public static class CourseSearchPrompt
     {
         var sb = new StringBuilder();
         sb.AppendLine($"Data de hoje: {now:yyyy-MM-dd}");
-        sb.AppendLine($"O que procuro: {profile.LookingFor}");
+        sb.AppendLine("Assuntos que quero estudar (traga opções para cada um):");
+        foreach (var topic in profile.Topics)
+            sb.AppendLine($"- {topic}");
         sb.AppendLine($"Objetivo: {Describe(profile.Goal)}");
         sb.AppendLine($"Nível: {Describe(profile.Level)}");
         sb.AppendLine($"Idioma dos cursos: {Describe(profile.Language)}");

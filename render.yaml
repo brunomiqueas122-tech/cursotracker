@@ -17,3 +17,7 @@ services:
         sync: false # chave grátis criada em aistudio.google.com
       - key: Auth__InviteCode
         sync: false # código que você passa para quem pode criar conta
+      - key: Premium__AdminEmails
+        sync: false # e-mail da sua conta no app: libera gerar códigos premium
+      - key: Premium__Contact
+        sync: false # como falar com você para assinar (e-mail ou WhatsApp), aparece na tela do Premium

@@ -1,6 +1,7 @@
 using CursoTracker.Api.Domain;
 using System.Text.Json;
 using CursoTracker.Api.Features.Auth;
+using CursoTracker.Api.Features.Premium;
 using CursoTracker.Api.Features.Recommendations;
 using Microsoft.AspNetCore.DataProtection.EntityFrameworkCore;
 using Microsoft.AspNetCore.Identity.EntityFrameworkCore;
@@ -15,6 +16,7 @@ public sealed class AppDbContext(DbContextOptions<AppDbContext> options)
     public DbSet<Course> Courses => Set<Course>();
     public DbSet<UserProfile> Profiles => Set<UserProfile>();
     public DbSet<RecommendationRun> RecommendationRuns => Set<RecommendationRun>();
+    public DbSet<PremiumCode> PremiumCodes => Set<PremiumCode>();
 
     // Chaves do cookie de login: no banco, para sobreviver aos reinícios do servidor
     public DbSet<DataProtectionKey> DataProtectionKeys => Set<DataProtectionKey>();
@@ -39,7 +41,7 @@ public sealed class AppDbContext(DbContextOptions<AppDbContext> options)
         modelBuilder.Entity<UserProfile>(profile =>
         {
             profile.HasKey(p => p.UserId);
-            profile.Property(p => p.LookingFor).HasMaxLength(500).IsRequired();
+            profile.Property(p => p.Topics).IsRequired(); // text[]
             profile.Property(p => p.Goal).HasConversion<string>().HasMaxLength(30);
             profile.Property(p => p.Level).HasConversion<string>().HasMaxLength(20);
             profile.Property(p => p.Language).HasConversion<string>().HasMaxLength(20);
@@ -62,6 +64,14 @@ public sealed class AppDbContext(DbContextOptions<AppDbContext> options)
                         v => v.ToList()));
             run.HasIndex(r => new { r.UserId, r.CreatedAt });
             run.HasOne<AppUser>().WithMany().HasForeignKey(r => r.UserId).OnDelete(DeleteBehavior.Cascade);
+        });
+
+        modelBuilder.Entity<PremiumCode>(code =>
+        {
+            code.Property(c => c.CodeHash).HasMaxLength(64).IsRequired();
+            code.Property(c => c.Hint).HasMaxLength(4).IsRequired();
+            code.Property(c => c.RedeemedByEmail).HasMaxLength(256);
+            code.HasIndex(c => c.CodeHash).IsUnique();
         });
     }
 }

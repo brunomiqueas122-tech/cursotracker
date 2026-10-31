@@ -29,7 +29,7 @@ public class AuthTests(PostgresFixture db)
 
         var me = await client.GetFromJsonAsync<MeResponse>("/api/auth/me", TestApi.Json);
 
-        Assert.Equal(new MeResponse("ana@example.com", HasProfile: false), me);
+        Assert.Equal(new MeResponse("ana@example.com", HasProfile: false, IsPremium: false, IsAdmin: false), me);
     }
 
     [Fact]

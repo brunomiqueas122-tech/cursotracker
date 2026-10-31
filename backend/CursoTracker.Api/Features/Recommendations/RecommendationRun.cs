@@ -9,15 +9,18 @@ public sealed class RecommendationRun
     public string? Refinement { get; private set; }
     public string? Note { get; private set; }
     public List<CourseSuggestion> Courses { get; private set; } = [];
+    /// <summary>Quantos dos primeiros cursos ficaram liberados no plano grátis; null = todos (Premium).</summary>
+    public int? UnlockedCount { get; private set; }
 
     private RecommendationRun() { } // EF Core
 
-    public RecommendationRun(string userId, DateTimeOffset createdAt, string? refinement, CourseSearchResult result)
+    public RecommendationRun(string userId, DateTimeOffset createdAt, string? refinement, CourseSearchResult result, int? unlockedCount)
     {
         UserId = userId;
         CreatedAt = createdAt;
         Refinement = refinement;
         Note = result.Note;
         Courses = [.. result.Courses];
+        UnlockedCount = unlockedCount;
     }
 }

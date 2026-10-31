@@ -5,6 +5,7 @@ using CursoTracker.Api.Data;
 using CursoTracker.Api.Features.Auth;
 using CursoTracker.Api.Features.Cursos;
 using CursoTracker.Api.Features.Dashboard;
+using CursoTracker.Api.Features.Premium;
 using CursoTracker.Api.Features.Profile;
 using CursoTracker.Api.Features.Recommendations;
 using FluentValidation;
@@ -67,6 +68,7 @@ builder.Services.AddRateLimiter(options =>
 });
 
 builder.Services.Configure<AiOptions>(builder.Configuration.GetSection("Ai"));
+builder.Services.Configure<PremiumOptions>(builder.Configuration.GetSection("Premium"));
 // Sem chave configurada o app sobe normalmente; só a busca com IA responde erro
 if (string.Equals(builder.Configuration["Ai:Provider"], "Claude", StringComparison.OrdinalIgnoreCase))
 {
@@ -98,6 +100,7 @@ api.MapCourses();
 api.MapDashboard();
 api.MapProfile();
 api.MapRecommendations();
+api.MapPremium();
 app.MapFallbackToFile("index.html");
 
 app.Run();

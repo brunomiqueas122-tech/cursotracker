@@ -11,7 +11,7 @@ namespace CursoTracker.Api.Tests;
 public class GeminiCourseFinderTests
 {
     static readonly UserProfile Profile = new("user-1",
-        new ProfileAnswers("Cloud e DevOps", LearningGoal.GetJob, SkillLevel.Beginner, CourseLanguage.Portuguese, 6));
+        new ProfileAnswers(["Cloud e DevOps"], LearningGoal.GetJob, SkillLevel.Beginner, CourseLanguage.Portuguese, 6));
 
     const string CoursesJson = """
         {"courses":[{"name":"Introduction to Kubernetes","platform":"Linux Foundation",

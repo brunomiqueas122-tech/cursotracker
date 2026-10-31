@@ -1,12 +1,14 @@
 using System.Net.Http.Json;
 using System.Text.Json;
 using System.Text.Json.Serialization;
+using CursoTracker.Api.Data;
 using CursoTracker.Api.Domain;
 using CursoTracker.Api.Features.Cursos;
 using CursoTracker.Api.Features.Recommendations;
 using Microsoft.AspNetCore.Hosting;
 using Microsoft.AspNetCore.Mvc.Testing;
 using Microsoft.AspNetCore.TestHost;
+using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.DependencyInjection;
 using Npgsql;
 using Testcontainers.PostgreSql;
@@ -48,6 +50,7 @@ public sealed class ApiFactory(string connectionString, int dailySearchLimit = 5
 {
     public const string InviteCode = "convite-teste";
     public const string Password = "senha1234";
+    public const string AdminEmail = "admin@example.com";
 
     public FakeCourseFinder Finder { get; } = new();
 
@@ -56,6 +59,8 @@ public sealed class ApiFactory(string connectionString, int dailySearchLimit = 5
         builder.UseSetting("ConnectionStrings:Default", connectionString);
         builder.UseSetting("Auth:InviteCode", InviteCode);
         builder.UseSetting("Ai:DailySearchLimit", dailySearchLimit.ToString());
+        builder.UseSetting("Premium:AdminEmails", $"outro@example.com, {AdminEmail.ToUpperInvariant()}");
+        builder.UseSetting("Premium:Contact", "WhatsApp (11) 90000-0000");
         builder.ConfigureTestServices(services => services.AddSingleton<ICourseFinder>(Finder));
     }
 
@@ -64,6 +69,16 @@ public sealed class ApiFactory(string connectionString, int dailySearchLimit = 5
         var client = CreateClient();
         var response = await client.PostAsJsonAsync("/api/auth/register", new { email, password = Password, inviteCode = InviteCode });
         response.EnsureSuccessStatusCode();
+        return client;
+    }
+
+    public async Task<HttpClient> CreatePremiumUserAsync(string email = "bruno@example.com")
+    {
+        var client = await CreateUserAsync(email);
+        await using var scope = Services.CreateAsyncScope();
+        var db = scope.ServiceProvider.GetRequiredService<AppDbContext>();
+        await db.Users.Where(u => u.Email == email)
+            .ExecuteUpdateAsync(s => s.SetProperty(u => u.PremiumUntil, DateTimeOffset.UtcNow.AddDays(30)));
         return client;
     }
 }
@@ -85,10 +100,13 @@ public static class TestApi
     public static Task<List<CourseResponse>?> CoursesAsync(this HttpClient client) =>
         client.GetFromJsonAsync<List<CourseResponse>>("/api/courses", Json);
 
-    public static async Task SaveProfileAsync(this HttpClient client, string lookingFor = "Cloud e DevOps para conseguir emprego")
+    public static async Task SaveProfileAsync(this HttpClient client, params string[] topics)
     {
-        var response = await client.PutAsJsonAsync("/api/profile",
-            new { lookingFor, goal = "GetJob", level = "Beginner", language = "Portuguese", hoursPerWeek = 6 }, Json);
+        var response = await client.SaveProfileResponseAsync(topics.Length > 0 ? topics : ["Cloud e DevOps para conseguir emprego"]);
         response.EnsureSuccessStatusCode();
     }
+
+    public static Task<HttpResponseMessage> SaveProfileResponseAsync(this HttpClient client, string[] topics) =>
+        client.PutAsJsonAsync("/api/profile",
+            new { topics, goal = "GetJob", level = "Beginner", language = "Portuguese", hoursPerWeek = 6 }, Json);
 }

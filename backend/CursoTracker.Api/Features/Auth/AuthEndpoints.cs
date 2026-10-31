@@ -1,15 +1,17 @@
 using System.Security.Cryptography;
 using System.Text;
 using CursoTracker.Api.Data;
+using CursoTracker.Api.Features.Premium;
 using Microsoft.AspNetCore.Http.HttpResults;
 using Microsoft.AspNetCore.Identity;
 using Microsoft.EntityFrameworkCore;
+using Microsoft.Extensions.Options;
 
 namespace CursoTracker.Api.Features.Auth;
 
 public sealed record RegisterRequest(string Email, string Password, string InviteCode);
 public sealed record LoginRequest(string Email, string Password);
-public sealed record MeResponse(string Email, bool HasProfile);
+public sealed record MeResponse(string Email, bool HasProfile, bool IsPremium, bool IsAdmin);
 
 public static class AuthEndpoints
 {
@@ -62,11 +64,13 @@ public static class AuthEndpoints
         return TypedResults.NoContent();
     }
 
-    static async Task<Ok<MeResponse>> Me(HttpContext http, AppDbContext db, CancellationToken ct)
+    static async Task<Ok<MeResponse>> Me(
+        HttpContext http, AppDbContext db, TimeProvider time, IOptions<PremiumOptions> premium, CancellationToken ct)
     {
         var userId = http.User.UserId();
         var hasProfile = await db.Profiles.AnyAsync(p => p.UserId == userId, ct);
-        return TypedResults.Ok(new MeResponse(http.User.Identity?.Name ?? "", hasProfile));
+        var email = http.User.Identity?.Name ?? "";
+        return TypedResults.Ok(new MeResponse(email, hasProfile, await db.IsPremiumAsync(userId, time, ct), premium.Value.IsAdmin(email)));
     }
 
     // Compara os hashes em tempo constante para não vazar o código por tempo de resposta

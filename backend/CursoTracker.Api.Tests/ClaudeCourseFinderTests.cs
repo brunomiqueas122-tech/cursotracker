@@ -27,7 +27,7 @@ sealed class FakeAnthropicHandler(params (HttpStatusCode Status, string Body)[] 
 public class ClaudeCourseFinderTests
 {
     static readonly UserProfile Profile = new("user-1",
-        new ProfileAnswers("Cloud e DevOps", LearningGoal.GetJob, SkillLevel.Beginner, CourseLanguage.Portuguese, 6));
+        new ProfileAnswers(["Cloud e DevOps"], LearningGoal.GetJob, SkillLevel.Beginner, CourseLanguage.Portuguese, 6));
 
     static string Message(string stopReason, params object[] content) => JsonSerializer.Serialize(new
     {

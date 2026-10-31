@@ -23,7 +23,7 @@ public class RecommendationTests(PostgresFixture db)
         await client.SaveProfileAsync("Quero aprender Kubernetes");
 
         var profile = await client.GetFromJsonAsync<ProfileResponse>("/api/profile", TestApi.Json);
-        Assert.Equal("Quero aprender Kubernetes", profile!.LookingFor);
+        Assert.Equal(["Quero aprender Kubernetes"], profile!.Topics);
         Assert.Equal(5, profile.RemainingSearchesToday);
         Assert.True((await client.GetFromJsonAsync<MeResponse>("/api/auth/me", TestApi.Json))!.HasProfile);
     }
@@ -35,7 +35,7 @@ public class RecommendationTests(PostgresFixture db)
         var client = await factory.CreateUserAsync();
 
         var response = await client.PutAsJsonAsync("/api/profile",
-            new { lookingFor = "", goal = "GetJob", level = "Beginner", language = "Any", hoursPerWeek = 0 }, TestApi.Json);
+            new { topics = Array.Empty<string>(), goal = "GetJob", level = "Beginner", language = "Any", hoursPerWeek = 0 }, TestApi.Json);
 
         var body = await response.Content.ReadAsStringAsync();
         Assert.Equal(HttpStatusCode.BadRequest, response.StatusCode);
