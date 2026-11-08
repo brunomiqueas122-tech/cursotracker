@@ -22,6 +22,14 @@ const course: Course = {
 }
 
 describe('CourseCard', () => {
+  it('links to the course site in a new tab', () => {
+    render(<CourseCard course={course} onSave={vi.fn()} />)
+
+    const link = screen.getByRole('link', { name: /Ir para o curso/ })
+    expect(link).toHaveAttribute('href', course.url)
+    expect(link).toHaveAttribute('target', '_blank')
+  })
+
   it('saves edited hours', async () => {
     const onSave = vi.fn<(id: number, p: UpdateProgressRequest) => Promise<void>>().mockResolvedValue()
     render(<CourseCard course={course} onSave={onSave} />)

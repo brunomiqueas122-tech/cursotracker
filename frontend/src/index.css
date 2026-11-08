@@ -196,3 +196,5 @@ button.premium-button { border-color: var(--premium); color: var(--premium); }
 .topics legend { padding: 0; margin-bottom: 4px; font-size: .82rem; color: var(--muted); }
 .topic-row { display: flex; gap: 10px; align-items: center; width: 100%; }
 .topic-row input { flex: 1; }
+
+.course-link { display: inline-block; margin-top: 8px; font-size: .9rem; font-weight: 600; }

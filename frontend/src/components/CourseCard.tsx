@@ -149,6 +149,9 @@ export function CourseCard({
               {course.name}
             </a>
           </h3>
+          <a className="course-link" href={course.url} target="_blank" rel="noreferrer">
+            Ir para o curso ↗
+          </a>
         </div>
         <div className="pills">
           {overdue && <span className="pill pill-overdue">Atrasado</span>}
