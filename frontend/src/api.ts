@@ -75,7 +75,7 @@ export const api = {
   },
   /** Arquivo "Baixar backup" do app antigo, enviado como está */
   importCourses: (backupJson: string) =>
-    json<{ imported: number }>('/api/courses/import', { method: 'POST', body: backupJson }),
+    json<{ imported: number; skipped: number }>('/api/courses/import', { method: 'POST', body: backupJson }),
 
   async me(signal?: AbortSignal): Promise<Me | null> {
     try {

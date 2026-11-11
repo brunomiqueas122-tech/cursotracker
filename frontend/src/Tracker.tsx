@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useMemo, useState } from 'react'
+import { useCallback, useEffect, useMemo, useState, type ReactNode } from 'react'
 import { UnauthorizedError } from './api'
 import { AgendaPanel } from './components/AgendaPanel'
 import { CourseCard } from './components/CourseCard'
@@ -28,7 +28,9 @@ interface Props {
   onLogout?: () => void
   onDiscover?: () => void
   onEditProfile?: () => void
-  importCourses?: (backupJson: string) => Promise<{ imported: number }>
+  importCourses?: (backupJson: string) => Promise<{ imported: number; skipped: number }>
+  /** Aviso no topo do plano (ex.: importar cursos do app antigo) */
+  notice?: ReactNode
   /** Plano grátis: cronograma, calendário, LinkedIn e certificados ficam com cadeado */
   free?: boolean
   onUpgrade?: () => void
@@ -45,6 +47,7 @@ export function Tracker({
   onDiscover,
   onEditProfile,
   importCourses,
+  notice,
   free = false,
   onUpgrade = () => undefined,
   premiumLabel,
@@ -177,6 +180,7 @@ export function Tracker({
         <p>Cursos gratuitos com certificado, um dia de cada vez.</p>
       </header>
 
+      {notice}
       {error && <p className="error" role="alert">{error}</p>}
       {summary && courses.length === 0 && onDiscover && (
         <section className="empty-plan">

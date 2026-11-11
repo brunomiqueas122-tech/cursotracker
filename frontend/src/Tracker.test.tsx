@@ -86,7 +86,7 @@ describe('Tracker', () => {
   })
 
   it('imports the old phone backup', async () => {
-    const importCourses = vi.fn().mockResolvedValue({ imported: 2 })
+    const importCourses = vi.fn().mockResolvedValue({ imported: 2, skipped: 0 })
     setup({ importCourses })
 
     const file = new File(['{"courses":[]}'], 'backup.json', { type: 'application/json' })

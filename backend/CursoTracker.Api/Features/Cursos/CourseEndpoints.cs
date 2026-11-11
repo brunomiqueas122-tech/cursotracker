@@ -97,17 +97,22 @@ public static class CourseEndpoints
             return TypedResults.ValidationProblem(validation.ToDictionary());
 
         var userId = http.User.UserId();
-        var imported = request.Courses.Select(i =>
-        {
-            var course = new Course(userId, 1, i.Date, i.Platform, i.Name, i.Area, i.Url, i.EstimatedHours);
-            course.UpdateProgress(i.ToProgress(), i.CompletedAt ?? time.GetUtcNow());
-            return course;
-        }).ToList();
+        var existing = await db.Mine(http).ToListAsync(ct);
+        // Importar o mesmo arquivo duas vezes não duplica: curso com link já no plano é pulado
+        var known = existing.Select(c => Urls.Normalize(c.Url)).ToHashSet(StringComparer.OrdinalIgnoreCase);
+        var imported = request.Courses
+            .Where(i => known.Add(Urls.Normalize(i.Url)))
+            .Select(i =>
+            {
+                var course = new Course(userId, 1, i.Date, i.Platform, i.Name, i.Area, i.Url, i.EstimatedHours);
+                course.UpdateProgress(i.ToProgress(), i.CompletedAt ?? time.GetUtcNow());
+                return course;
+            }).ToList();
 
         db.Courses.AddRange(imported);
-        CoursePlan.Renumber([.. await db.Mine(http).ToListAsync(ct), .. imported]);
+        CoursePlan.Renumber([.. existing, .. imported]);
         await db.SaveChangesAsync(ct);
-        return TypedResults.Ok(new ImportResponse(imported.Count));
+        return TypedResults.Ok(new ImportResponse(imported.Count, request.Courses.Count - imported.Count));
     }
 
     static async Task<Results<Ok<CourseResponse>, NotFound, ValidationProblem>> UpdateCourse(

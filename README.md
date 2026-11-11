@@ -12,7 +12,8 @@ Acompanhe cursos gratuitos com certificado. Crie sua conta, conte o que você pr
 - Cronômetro de estudo, dashboard de progresso, lembretes no calendário (.ics)
 - LinkedIn: formulário de certificação pré-preenchido e post pronto ao concluir
 - Exporta `certificados.json` para o portfólio
-- Importa o backup da versão antiga (só no celular)
+- Importa o backup da versão antiga, sem duplicar cursos que já estão no plano
+- Mudança automática do app antigo: `legacy-pages/` substitui o app offline do GitHub Pages por uma página que leva os cursos do celular para o app novo no link (`#importar=...`). Publicada só à mão, pelo workflow **Legacy pages**
 
 ## Rodar localmente
 

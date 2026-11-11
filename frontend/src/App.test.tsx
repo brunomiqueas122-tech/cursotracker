@@ -1,6 +1,7 @@
 import { render, screen } from '@testing-library/react'
 import userEvent from '@testing-library/user-event'
 import App from './App'
+import { encodeLegacyImport } from './legacyImport'
 
 type Handler = (url: string, init?: RequestInit) => Response
 
@@ -23,7 +24,11 @@ const profile = {
   freeCoursesLeft: 3, topicLimit: 2,
 }
 
-afterEach(() => vi.unstubAllGlobals())
+afterEach(() => {
+  vi.unstubAllGlobals()
+  window.history.replaceState(null, '', '/')
+  sessionStorage.clear()
+})
 
 describe('App', () => {
   it('asks to log in when there is no session', async () => {
@@ -97,5 +102,36 @@ describe('App', () => {
 
     expect(await screen.findByText('Seu plano ainda está vazio')).toBeInTheDocument()
     expect(screen.getByRole('button', { name: 'Sair' })).toBeInTheDocument()
+  })
+
+  it('imports the courses sent by the old phone app after login', async () => {
+    const backup = JSON.stringify({ version: 1, courses: [{ name: 'LFD121' }, { name: 'SQL' }] })
+    window.history.replaceState(null, '', '/#importar=' + encodeLegacyImport(backup))
+    let loggedIn = false
+    const fetchMock = mockFetch((url) => {
+      if (url === '/api/auth/login') {
+        loggedIn = true
+        return noContent()
+      }
+      if (!loggedIn) return unauthorized()
+      if (url === '/api/auth/me') return json({ email: 'ana@example.com', hasProfile: true, isPremium: false, isAdmin: false })
+      if (url === '/api/profile') return json(profile)
+      if (url === '/api/dashboard') return json(emptyDashboard)
+      if (url === '/api/courses/import') return json({ imported: 1, skipped: 1 })
+      return json([])
+    })
+    render(<App />)
+
+    // O link é limpo na hora: recarregar a página não importa de novo
+    expect(window.location.hash).toBe('')
+    await userEvent.type(await screen.findByLabelText('E-mail'), 'ana@example.com')
+    await userEvent.type(screen.getByLabelText('Senha'), 'senha1234')
+    await userEvent.click(screen.getByRole('button', { name: 'Entrar' }))
+    await userEvent.click(await screen.findByRole('button', { name: 'Importar 2 curso(s)' }))
+
+    expect(await screen.findByText('1 curso(s) do app antigo importado(s) para sua conta. 1 já estava(m) no plano.')).toBeInTheDocument()
+    const sent = fetchMock.mock.calls.find(([url]) => url === '/api/courses/import')!
+    expect(sent[1]!.body).toBe(backup)
+    expect(sessionStorage.length).toBe(0)
   })
 })

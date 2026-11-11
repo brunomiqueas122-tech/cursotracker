@@ -39,4 +39,7 @@ static class Urls
 {
     public static bool IsHttp(string? url) =>
         Uri.TryCreate(url?.Trim(), UriKind.Absolute, out var uri) && (uri.Scheme == Uri.UriSchemeHttp || uri.Scheme == Uri.UriSchemeHttps);
+
+    /// <summary>Forma usada para comparar links: sem espaços nem barra final (compare sem diferenciar maiúsculas).</summary>
+    public static string Normalize(string url) => url.Trim().TrimEnd('/');
 }

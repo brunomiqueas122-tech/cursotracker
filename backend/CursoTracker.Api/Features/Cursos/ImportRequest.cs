@@ -26,7 +26,8 @@ public sealed record ImportedCourse(
     public CourseProgress ToProgress() => ToProgressRequest().ToProgress();
 }
 
-public sealed record ImportResponse(int Imported);
+/// <param name="Skipped">Cursos pulados porque o link já estava no plano.</param>
+public sealed record ImportResponse(int Imported, int Skipped);
 
 public sealed class ImportValidator : AbstractValidator<ImportRequest>
 {

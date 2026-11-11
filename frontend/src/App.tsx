@@ -2,10 +2,12 @@ import { useCallback, useEffect, useState } from 'react'
 import { api } from './api'
 import { AuthScreen } from './components/AuthScreen'
 import { DiscoverPanel } from './components/DiscoverPanel'
+import { LegacyImportBanner } from './components/LegacyImportBanner'
 import { PremiumPanel } from './components/PremiumPanel'
 import { ProfileForm } from './components/ProfileForm'
 import { toIsoDate } from './domain/agenda'
 import { nextPlanDates } from './domain/schedule'
+import { forgetLegacyImport, takeLegacyImport } from './legacyImport'
 import { httpStore } from './store'
 import { Tracker } from './Tracker'
 import type { CourseSuggestion, Me, Profile, ProfileAnswers } from './types'
@@ -22,6 +24,10 @@ export default function App() {
   const [view, setView] = useState<View>('tracker')
   const [returnTo, setReturnTo] = useState<View>('tracker')
   const [searchOnOpen, setSearchOnOpen] = useState(false)
+  // Cursos vindos do app antigo pelo link; ficam guardados até a pessoa entrar e decidir
+  const [legacy, setLegacy] = useState(takeLegacyImport)
+  const [notice, setNotice] = useState<string | null>(null)
+  const [trackerKey, setTrackerKey] = useState(0)
 
   const enter = useCallback(
     (signal?: AbortSignal) =>
@@ -89,6 +95,20 @@ export default function App() {
     setView('discover')
   }
 
+  const finishLegacy = () => {
+    forgetLegacyImport()
+    setLegacy(null)
+  }
+
+  const importLegacy = async () => {
+    if (!legacy) return
+    const result = await api.importCourses(legacy.json)
+    finishLegacy()
+    const repeated = result.skipped > 0 ? ` ${result.skipped} já estava(m) no plano.` : ''
+    setNotice(`${result.imported} curso(s) do app antigo importado(s) para sua conta.${repeated}`)
+    setTrackerKey((k) => k + 1) // recarrega o plano com os cursos novos
+  }
+
   // Premium: um curso por dia, a partir do fim do plano atual. Grátis: tudo para hoje (sem cronograma)
   const addSuggestions = async (list: CourseSuggestion[]) => {
     const today = toIsoDate(new Date())
@@ -144,6 +164,7 @@ export default function App() {
 
   return (
     <Tracker
+      key={trackerKey}
       store={httpStore}
       onUnauthorized={expire}
       onLogout={logout}
@@ -153,6 +174,17 @@ export default function App() {
       free={!me?.isPremium}
       onUpgrade={() => openPremium('tracker')}
       premiumLabel={me?.isPremium ? 'Premium' : 'Seja Premium'}
+      notice={
+        legacy ? (
+          <LegacyImportBanner count={legacy.count} onImport={importLegacy} onDismiss={finishLegacy} />
+        ) : (
+          notice && (
+            <p className="premium-welcome" role="status">
+              {notice}
+            </p>
+          )
+        )
+      }
     />
   )
 }

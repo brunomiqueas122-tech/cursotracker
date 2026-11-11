@@ -1,7 +1,7 @@
 import { useState, type ChangeEvent } from 'react'
 
 interface Props {
-  importCourses: (backupJson: string) => Promise<{ imported: number }>
+  importCourses: (backupJson: string) => Promise<{ imported: number; skipped: number }>
   onImported: () => void
 }
 
@@ -14,8 +14,9 @@ export function ImportPanel({ importCourses, onImported }: Props) {
     e.target.value = ''
     if (!file) return
     try {
-      const { imported } = await importCourses(await file.text())
-      setMessage({ text: `${imported} curso(s) importado(s) para sua conta.`, error: false })
+      const { imported, skipped } = await importCourses(await file.text())
+      const repeated = skipped > 0 ? ` ${skipped} já estava(m) no plano.` : ''
+      setMessage({ text: `${imported} curso(s) importado(s) para sua conta.${repeated}`, error: false })
       onImported()
     } catch (err) {
       setMessage({ text: err instanceof Error ? err.message : 'Arquivo inválido.', error: true })

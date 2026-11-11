@@ -41,12 +41,12 @@ public static class SuggestionSanitizer
 
     public static IReadOnlyList<CourseSuggestion> Clean(IEnumerable<CourseSuggestion> suggestions, IReadOnlyCollection<string> knownUrls)
     {
-        var seen = new HashSet<string>(knownUrls.Select(Normalize), StringComparer.OrdinalIgnoreCase);
+        var seen = new HashSet<string>(knownUrls.Select(Urls.Normalize), StringComparer.OrdinalIgnoreCase);
         var result = new List<CourseSuggestion>();
         foreach (var s in suggestions)
         {
             var url = s.Url?.Trim() ?? "";
-            if (string.IsNullOrWhiteSpace(s.Name) || !Urls.IsHttp(url) || !seen.Add(Normalize(url)))
+            if (string.IsNullOrWhiteSpace(s.Name) || !Urls.IsHttp(url) || !seen.Add(Urls.Normalize(url)))
                 continue;
 
             result.Add(new CourseSuggestion(
@@ -63,8 +63,6 @@ public static class SuggestionSanitizer
         }
         return result;
     }
-
-    static string Normalize(string url) => url.Trim().TrimEnd('/');
 
     static string Truncate(string? value, int max)
     {

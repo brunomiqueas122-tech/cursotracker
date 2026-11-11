@@ -105,11 +105,17 @@ public class CourseApiTests(PostgresFixture db)
 
         var response = await client.PostAsync("/api/courses/import", new StringContent(backup, System.Text.Encoding.UTF8, "application/json"));
 
-        Assert.Equal(new ImportResponse(2), await response.Content.ReadFromJsonAsync<ImportResponse>(TestApi.Json));
+        Assert.Equal(new ImportResponse(2, 0), await response.Content.ReadFromJsonAsync<ImportResponse>(TestApi.Json));
         var courses = (await client.CoursesAsync())!;
         Assert.Equal([1, 3], courses.Select(c => c.Day));
         Assert.Equal(DateTimeOffset.Parse("2026-10-26T20:00:00Z"), courses[0].CompletedAt);
         Assert.True(courses[0].OnLinkedIn);
+
+        // Importar de novo não duplica (o link com barra final conta como o mesmo curso)
+        var again = await client.PostAsync("/api/courses/import",
+            new StringContent(backup.Replace("https://skillbuilder.aws/", "https://SKILLBUILDER.aws"), System.Text.Encoding.UTF8, "application/json"));
+        Assert.Equal(new ImportResponse(0, 2), await again.Content.ReadFromJsonAsync<ImportResponse>(TestApi.Json));
+        Assert.Equal(2, (await client.CoursesAsync())!.Count);
     }
 
     [Fact]
